@@ -26,22 +26,22 @@
           <el-icon><Monitor /></el-icon>
           <span>模型训练</span>
         </el-menu-item>
-        
-        <el-menu-item index="/config/models">
-          <el-icon><Coin /></el-icon>
-          <span>模型配置</span>
+
+        <el-menu-item index="/swanlab">
+          <el-icon><TrendCharts /></el-icon>
+          <span>训练可视化</span>
         </el-menu-item>
-        
+      
         <el-menu-item index="/system-prompt">
           <el-icon><Document /></el-icon>
           <span>系统提示词</span>
         </el-menu-item>
         
-        <el-menu-item index="/swanlab">
-          <el-icon><TrendCharts /></el-icon>
-          <span>训练可视化</span>
+        <el-menu-item index="/config/models">
+          <el-icon><Coin /></el-icon>
+          <span>模型配置</span>
         </el-menu-item>
-        
+
         <el-menu-item v-if="isAdmin" index="/admin">
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>

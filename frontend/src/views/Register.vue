@@ -17,7 +17,11 @@
             v-model="registerData.email"
             placeholder="邮箱"
             size="large"
-          />
+          >
+            <template #prefix>
+              <el-icon><Message /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="nickname">
@@ -25,7 +29,11 @@
             v-model="registerData.nickname"
             placeholder="昵称"
             size="large"
-          />
+          >
+            <template #prefix>
+              <el-icon><User /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="password">
@@ -35,7 +43,11 @@
             placeholder="密码"
             size="large"
             show-password
-          />
+          >
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         
         <el-form-item prop="confirmPassword">
@@ -45,18 +57,24 @@
             placeholder="确认密码"
             size="large"
             show-password
-          />
+          >
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         
-        <el-button
-          :loading="loading"
-          type="primary"
-          size="large"
-          style="width: 100%"
-          @click="handleRegister"
-        >
-          注册
-        </el-button>
+        <div class="register-actions">
+          <el-button
+            :loading="loading"
+            type="primary"
+            size="large"
+            style="width: 100%"
+            @click="handleRegister"
+          >
+            注册
+          </el-button>
+        </div>
         
         <div class="register-links">
           <el-button type="text" @click="$router.push('/login')">
@@ -64,6 +82,10 @@
           </el-button>
         </div>
       </el-form>
+      
+      <div class="register-footer">
+        <p>企业级AI模型训练平台</p>
+      </div>
     </div>
   </div>
 </template>
@@ -73,9 +95,15 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from '../utils/message'
 import { authAPI } from '../utils/api'
+import { User, Lock, Message } from '@element-plus/icons-vue'
 
 export default {
   name: 'Register',
+  components: {
+    User,
+    Lock,
+    Message
+  },
   setup() {
     const router = useRouter()
     const registerForm = ref(null)
@@ -151,7 +179,10 @@ export default {
       registerData,
       registerRules,
       loading,
-      handleRegister
+      handleRegister,
+      User,
+      Lock,
+      Message
     }
   }
 }
@@ -163,43 +194,139 @@ export default {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, var(--light-blue) 0%, var(--medium-blue) 50%, var(--primary-blue) 100%);
 }
 
 .register-card {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 12px 48px rgba(100, 168, 219, 0.2);
+  padding: 3rem 2.5rem;
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
+  border: 2px solid var(--light-blue);
+  backdrop-filter: blur(10px);
 }
 
 .register-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 2.5rem;
 }
 
 .register-header h1 {
-  color: #303133;
-  margin: 0 0 8px 0;
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  color: var(--dark-blue);
+  letter-spacing: 1px;
 }
 
 .register-header p {
-  color: #909399;
+  font-size: 1.1rem;
+  color: #606266;
   margin: 0;
-  font-size: 14px;
+  font-weight: 400;
 }
 
 .register-form {
-  margin-bottom: 24px;
+  margin-bottom: 1.5rem;
+}
+
+.register-form .el-form-item {
+  margin-bottom: 1.8rem;
+}
+
+.register-form .el-input {
+  border-radius: 10px;
+  height: 48px;
+}
+
+.register-form .el-input__wrapper {
+  border-radius: 10px;
+  border: 2px solid var(--light-blue);
+  transition: all 0.3s ease;
+  height: 48px;
+  padding: 0 15px;
+}
+
+.register-form .el-input__inner {
+  font-size: 1rem !important;
+  height: 44px;
+  line-height: 44px;
+}
+
+.register-form .el-input__prefix {
+  display: flex;
+  align-items: center;
+  height: 44px;
+}
+
+.register-form .el-input__prefix .el-icon {
+  font-size: 1.2rem !important;
+  color: var(--primary-blue);
+}
+
+.register-form .el-input__wrapper:hover {
+  border-color: var(--medium-blue);
+}
+
+.register-form .el-input.is-focus .el-input__wrapper {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(100, 168, 219, 0.1);
+}
+
+.register-actions {
+  margin: 2rem 0;
+}
+
+.register-actions .el-button {
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+  border: none;
+  font-weight: 600;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  height: 48px;
+  font-size: 1.1rem;
+}
+
+.register-actions .el-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(100, 168, 219, 0.4);
 }
 
 .register-links {
+  margin-top: 1.5rem;
   text-align: center;
-  margin-top: 24px;
+}
+
+.register-links .el-button {
+  font-size: 0.95rem;
+  color: var(--primary-blue);
+  font-weight: 500;
+  padding: 8px 16px;
+}
+
+.register-links .el-button:hover {
+  color: var(--dark-blue);
+}
+
+.register-footer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--light-blue);
+  text-align: center;
+}
+
+.register-footer p {
+  font-size: 1rem;
+  color: var(--primary-blue);
+  margin: 0;
+  font-weight: 500;
+  background: var(--light-blue);
+  padding: 0.8rem 1.5rem;
+  border-radius: 10px;
+  display: inline-block;
 }
 </style> 

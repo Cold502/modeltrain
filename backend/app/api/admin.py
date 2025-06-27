@@ -73,10 +73,18 @@ async def delete_user(
 async def update_user_role(
     target_user_id: int,
     user_id: int,
-    is_admin: bool = Body(...),
+    request_body: dict = Body(...),
     db: Session = Depends(get_db)
 ):
     """修改用户角色（管理员）"""
+    # 从请求体中获取is_admin
+    is_admin = request_body.get("is_admin")
+    if is_admin is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少is_admin参数"
+        )
+    
     admin_user = db.query(User).filter(User.id == user_id).first()
     if not admin_user or not admin_user.is_admin:
         raise HTTPException(

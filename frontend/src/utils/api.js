@@ -18,7 +18,9 @@ api.interceptors.request.use(
     const user = store.state.user
     if (user && user.id) {
       // 添加用户ID到请求参数中（简化版认证）
-      if (config.method === 'get' || config.method === 'delete') {
+      // 对于admin和config API，所有请求都使用查询参数
+      if (config.url.includes('/admin/') || config.url.includes('/config/') || 
+          config.method === 'get' || config.method === 'delete') {
         config.params = { ...config.params, user_id: user.id }
       } else {
         config.data = { ...config.data, user_id: user.id }
