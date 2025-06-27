@@ -1,0 +1,267 @@
+/* 为超大屏幕和投影仪展示设计的全局样式规范 */
+:root {
+  /* 基础字体大小，适合大屏幕 */
+  --el-font-size-base: 18px; 
+
+  /* 组件尺寸大幅放大 */
+  --el-button-size-large: 72px;
+  --el-button-size-default: 60px;
+  --el-button-size-small: 48px;
+  
+  --el-input-height-large: 72px;
+  --el-input-height-default: 60px;
+  
+  --el-menu-item-height: 56px;
+  --el-menu-item-font-size: 1.1rem;
+  
+  --el-dialog-font-size: 1.5rem;
+  --el-card-padding: 3rem;
+  --el-table-font-size: 1.3rem;
+  
+  /* 淡蓝色主题色彩 - 日间模式 */
+  --primary-blue: #64a8db;
+  --light-blue: #e8f4fd;
+  --medium-blue: #b3d7f0;
+  --dark-blue: #4a90c2;
+  --background-blue: #f0f8ff;
+  --text-color: #333333;
+  --bg-color: #ffffff;
+  --card-bg: linear-gradient(135deg, #ffffff 0%, #e8f4fd 100%);
+  --border-color: #e8f4fd;
+  --placeholder-color: #a8a8a8;
+}
+
+/* 黑夜模式 */
+:root.dark-mode {
+  /* 黑夜模式色彩 */
+  --primary-blue: #5a9bd4;
+  --light-blue: #34495e;
+  --medium-blue: #4a6741;
+  --dark-blue: #3498db;
+  --background-blue: #1a1a1a;
+  --text-color: #e0e0e0;
+  --bg-color: #2c2c2c;
+  --card-bg: linear-gradient(135deg, #2c2c2c 0%, #34495e 100%);
+  --border-color: #34495e;
+  --placeholder-color: #7a7a7a;
+}
+
+/* 表单样式放大 */
+.el-form-item__label {
+  font-size: 1.3rem !important;
+  font-weight: 500 !important;
+  color: var(--text-color) !important;
+}
+
+.el-form-item {
+  margin-bottom: 2rem !important;
+}
+
+/* --- 全局样式 --- */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  font-size: 18px; /* 适合大屏幕的字体大小 */
+  background: var(--background-blue);
+  line-height: 1.6;
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 滚动条样式放大 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--light-blue);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--medium-blue);
+  border-radius: 4px;
+  border: 1px solid var(--light-blue);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dark-blue);
+}
+
+/* Element Plus 样式覆盖 */
+.el-menu-item {
+  padding-left: 20px !important;
+  font-size: 1.1rem !important;
+  height: 56px !important;
+  line-height: 56px !important;
+}
+
+.el-menu-item .el-icon {
+  margin-right: 15px;
+  font-size: 1.6rem !important;
+}
+
+.el-button {
+  font-size: 1.2rem !important;
+  font-weight: 500 !important;
+  padding: 16px 32px !important;
+}
+
+.el-button--large {
+  font-size: 1.4rem !important;
+  padding: 20px 40px !important;
+}
+
+.el-input__inner {
+  font-size: 1.2rem !important;
+  padding: 16px !important;
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+.el-textarea__inner {
+  font-size: 1.2rem !important;
+  padding: 16px !important;
+  line-height: 1.6 !important;
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+.el-card {
+  font-size: 1.1rem !important;
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+.el-card__header {
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  color: var(--text-color) !important;
+  background: var(--light-blue) !important;
+}
+
+.el-dialog__title {
+  font-size: 1.6rem !important;
+  font-weight: 600 !important;
+  color: var(--text-color) !important;
+}
+
+.el-table {
+  font-size: 1.2rem !important;
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+.el-table th {
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  background: var(--light-blue) !important;
+  color: var(--text-color) !important;
+}
+
+/* 下拉菜单样式统一 */
+.el-dropdown-menu {
+  background: var(--bg-color) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.el-dropdown-menu__item {
+  color: var(--text-color) !important;
+  font-size: 1rem !important;
+  padding: 8px 16px !important;
+  transition: all 0.3s ease !important;
+}
+
+.el-dropdown-menu__item:hover {
+  background: var(--light-blue) !important;
+  color: var(--dark-blue) !important;
+}
+
+/* Tooltip样式 */
+.el-tooltip__popper {
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px !important;
+}
+
+/* 动画效果 */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* 通用工具类 */
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mt-10 {
+  margin-top: 20px;
+}
+
+.mt-20 {
+  margin-top: 40px;
+}
+
+.mb-10 {
+  margin-bottom: 20px;
+}
+
+.mb-20 {
+  margin-bottom: 40px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-full {
+    width: 100% !important;
+  }
+} 
