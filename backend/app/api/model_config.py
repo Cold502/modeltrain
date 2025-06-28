@@ -95,54 +95,66 @@ DEFAULT_PROVIDERS = [
     }
 ]
 
-# 默认模型配置列表（按优先级排序）
+# 默认模型配置列表（按优先级排序：vLLM第一、Ollama第二、DeepSeek第三）
 DEFAULT_MODEL_CONFIGS = [
-    # 1. Ollama 
-    {
-        "provider_id": "ollama",
-        "provider_name": "Ollama",
-        "endpoint": "http://127.0.0.1:11434/api",
-        "api_key": "",
-        "model_id": "qwen2.5:latest",
-        "model_name": "Qwen2.5-7B",
-        "type": "chat",
-        "temperature": 0.7,
-        "max_tokens": 4096,
-        "status": 1
-    },
-    {
-        "provider_id": "ollama",
-        "provider_name": "Ollama",
-        "endpoint": "http://127.0.0.1:11434/api",
-        "api_key": "",
-        "model_id": "llama3.2:latest",
-        "model_name": "Llama3.2-3B",
-        "type": "chat",
-        "temperature": 0.7,
-        "max_tokens": 4096,
-        "status": 1
-    },
-    # 2. VLLM 
+    # 1. VLLM (最优先显示)
     {
         "provider_id": "vllm",
         "provider_name": "VLLM",
         "endpoint": "http://127.0.0.1:8000/v1/",
         "api_key": "",
-        "model_id": "meta-llama/Llama-2-7b-chat-hf",
-        "model_name": "Llama-2-7B-Chat",
+        "model_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        "model_name": "DeepSeek R1-7B",
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
         "status": 1
     },
-    # 3. DeepSeek
+    {
+        "provider_id": "vllm",
+        "provider_name": "VLLM",
+        "endpoint": "http://127.0.0.1:8000/v1/",
+        "api_key": "",
+        "model_id": "Qwen/Qwen3-8B-Instruct",
+        "model_name": "Qwen3-8B",
+        "type": "chat",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "status": 1
+    },
+    # 2. Ollama (第二优先)
+    {
+        "provider_id": "ollama",
+        "provider_name": "Ollama",
+        "endpoint": "http://127.0.0.1:11434/api",
+        "api_key": "",
+        "model_id": "deepseek-r1:7b",
+        "model_name": "DeepSeek R1-7B",
+        "type": "chat",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "status": 1
+    },
+    {
+        "provider_id": "ollama",
+        "provider_name": "Ollama",
+        "endpoint": "http://127.0.0.1:11434/api",
+        "api_key": "",
+        "model_id": "qwen3:8b",
+        "model_name": "Qwen3-8B",
+        "type": "chat",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "status": 1
+    },
+    # 3. DeepSeek (第三优先)
     {
         "provider_id": "deepseek",
         "provider_name": "DeepSeek",
         "endpoint": "https://api.deepseek.com/v1/",
         "api_key": "",
-        "model_id": "deepseek-chat",
-        "model_name": "DeepSeek-Chat",
+        "model_id": "deepseek-r1",
+        "model_name": "DeepSeek R1-7B",
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
@@ -321,6 +333,7 @@ DEFAULT_MODEL_CONFIGS = [
 async def init_default_model_configs(db: Session):
     """初始化默认模型配置到数据库"""
     try:
+        # 按顺序插入，vLLM第一个插入，显示在最上面
         for config_data in DEFAULT_MODEL_CONFIGS:
             # 检查是否已存在相同的配置
             existing = db.query(ModelConfigModel).filter(
@@ -367,7 +380,8 @@ async def get_providers(db: Session = Depends(get_db)):
 async def get_model_configs(db: Session = Depends(get_db)):
     """获取模型配置列表"""
     try:
-        configs = db.query(ModelConfigModel).all()
+        # 按创建时间正序排列，最先插入的在最上面（vLLM优先显示）
+        configs = db.query(ModelConfigModel).order_by(ModelConfigModel.created_at.asc()).all()
         return configs
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模型配置失败: {str(e)}")

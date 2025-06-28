@@ -516,9 +516,17 @@ export default {
         }
 
         saving.value = true
+        // 更明确的判断：有ID且editingModel存在才是编辑模式
+        const isEdit = !!(editingModel.value && modelConfigForm.id)
+        console.log('保存模型配置:', { 
+          editingModel: editingModel.value, 
+          configId: modelConfigForm.id, 
+          isEdit 
+        })
+        
         await store.dispatch('model/saveModelConfig', {
           config: { ...modelConfigForm },
-          isEdit: !!editingModel.value
+          isEdit: isEdit
         })
 
         message.success(editingModel.value ? '模型配置更新成功' : '模型配置创建成功')
