@@ -665,7 +665,6 @@ export default {
 
 .model-card {
   border-radius: 12px;
-  transition: all 0.3s ease;
   background: var(--bg-color);
   border-color: var(--border-color);
   border: 1px solid var(--border-color);
@@ -739,7 +738,7 @@ export default {
   border-radius: 8px !important;
   font-weight: 500 !important;
   letter-spacing: 0.5px !important;
-  transition: all 0.3s ease !important;
+
   width: 85px !important;
   height: 32px !important;
   display: flex !important;
@@ -868,7 +867,6 @@ export default {
 .model-form :deep(.el-button) {
   border-radius: 10px !important;
   font-weight: 600;
-  transition: all 0.3s ease;
 }
 
 .model-form :deep(.el-slider__button:hover) {

@@ -92,7 +92,6 @@ export default {
   position: relative;
   cursor: pointer;
   border: 2px solid var(--medium-blue);
-  transition: all 0.3s ease;
 }
 
 .theme-switch:hover {
@@ -106,7 +105,6 @@ export default {
   position: absolute;
   top: 0;
   left: 0;
-  transition: all 0.3s ease;
 }
 
 .theme-switch-track.is-dark {
@@ -121,7 +119,6 @@ export default {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -136,7 +133,6 @@ export default {
 .theme-icon {
   font-size: 0.9rem;
   color: var(--dark-blue);
-  transition: all 0.3s ease;
 }
 
 .theme-switch-thumb.is-dark .theme-icon {

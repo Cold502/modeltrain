@@ -215,7 +215,6 @@ export default {
 .sidebar-menu .el-menu-item {
   margin: 0.3rem 0;
   border-radius: 8px;
-  transition: all 0.3s ease;
   background: transparent;
   color: var(--text-color);
   border: 1px solid transparent;
@@ -267,7 +266,6 @@ export default {
   position: relative;
   cursor: pointer;
   border: 2px solid var(--medium-blue);
-  transition: all 0.3s ease;
   flex-shrink: 0;
   align-self: center;
 }
@@ -283,7 +281,6 @@ export default {
   position: absolute;
   top: 0;
   left: 0;
-  transition: all 0.3s ease;
 }
 
 .theme-switch-track.is-dark {
@@ -298,7 +295,6 @@ export default {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -313,7 +309,6 @@ export default {
 .theme-icon {
   font-size: 1rem;
   color: var(--dark-blue);
-  transition: all 0.3s ease;
 }
 
 .user-info {
@@ -327,7 +322,6 @@ export default {
   padding: 0.5rem 1rem;
   border-radius: 8px;
   background: var(--light-blue);
-  transition: all 0.3s ease;
   border: 1px solid var(--medium-blue);
   height: 40px;
   flex-shrink: 0;

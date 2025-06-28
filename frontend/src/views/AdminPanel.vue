@@ -301,7 +301,6 @@ export default {
   align-items: center;
   gap: 1.5rem;
   box-shadow: 0 4px 16px rgba(100, 168, 219, 0.1);
-  transition: all 0.3s ease;
 }
 
 .stat-card:hover {
@@ -382,7 +381,7 @@ export default {
   background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
   border: none;
   box-shadow: 0 4px 12px rgba(100, 168, 219, 0.3);
-  transition: all 0.3s ease;
+
 }
 
 .refresh-btn:hover {
@@ -444,7 +443,6 @@ export default {
   background: var(--primary-blue);
   border: none;
   color: white;
-  transition: all 0.3s ease;
 }
 
 .role-toggle-btn:hover {
@@ -460,7 +458,6 @@ export default {
   background: #ef4444;
   border: none;
   color: white;
-  transition: all 0.3s ease;
 }
 
 .delete-btn:hover {

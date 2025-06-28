@@ -251,7 +251,6 @@ export default {
 .register-form .el-input__wrapper {
   border-radius: 10px;
   border: 2px solid var(--light-blue);
-  transition: all 0.3s ease;
   height: 48px;
   padding: 0 15px;
 }
@@ -292,7 +291,6 @@ export default {
   border: none;
   font-weight: 600;
   letter-spacing: 1px;
-  transition: all 0.3s ease;
   height: 48px;
   font-size: 1.1rem;
 }

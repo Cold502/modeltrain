@@ -19,7 +19,7 @@
         borderRadius: rounded ? '50%' : '4px'
       }"
       :class="{ 
-        'dark-invert': isDarkMode && (provider === 'ollama' || provider === 'openai')
+        'dark-invert': isDarkMode && (provider === 'ollama' || provider === 'openai' || provider === 'kimi')
       }"
       @error="handleError"
     />
@@ -97,7 +97,7 @@ export default {
 }
 
 .provider-icon img {
-  transition: transform 0.2s ease, filter 0.3s ease;
+  /* 移除过渡效果 */
 }
 
 .provider-icon:hover img {

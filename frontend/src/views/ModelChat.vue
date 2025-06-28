@@ -457,7 +457,6 @@ export default {
   background: var(--bg-color);
   border: 2px solid var(--border-color);
   cursor: pointer;
-  transition: all 0.3s ease;
 }
 
 .session-item:hover {
@@ -493,7 +492,6 @@ export default {
   cursor: pointer;
   padding: 0.3rem;
   border-radius: 4px;
-  transition: all 0.2s ease;
 }
 
 .session-info .el-icon:hover {
@@ -669,7 +667,7 @@ export default {
   background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
   border: none;
   box-shadow: 0 4px 12px rgba(100, 168, 219, 0.3);
-  transition: all 0.3s ease;
+
 }
 
 .send-button:hover {

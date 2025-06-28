@@ -155,13 +155,74 @@
   box-sizing: border-box;
 }
 
+/* 强制禁用所有过渡效果，包括Element Plus组件 */
+*, *::before, *::after {
+  transition: none !important;
+  animation: none !important;
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+  -ms-transition: none !important;
+}
+
+/* 特别针对Element Plus组件禁用过渡 */
+.el-card,
+.el-card *,
+.el-button,
+.el-button *,
+.el-input,
+.el-input *,
+.el-dialog,
+.el-dialog *,
+.el-menu,
+.el-menu *,
+.el-tag,
+.el-tag * {
+  transition: none !important;
+  animation: none !important;
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+  -ms-transition: none !important;
+}
+
+/* 强制立即应用主题变化 */
+html, body, .dark-mode, .dark-mode * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* 特别针对模型卡片禁用过渡 */
+.model-card,
+.model-card *,
+.el-card.model-card,
+.el-card.model-card * {
+  transition: none !important;
+  animation: none !important;
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+  -ms-transition: none !important;
+}
+
+/* 覆盖任何可能的Element Plus默认过渡 */
+[class*="el-"] {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* 确保主题切换时立即生效 */
+.dark-mode [class*="el-"] {
+  transition: none !important;
+  animation: none !important;
+}
+
 body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--el-bg-color-page) !important;
   color: var(--el-text-color-primary) !important;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Element Plus 组件全局样式覆盖 */
@@ -171,7 +232,6 @@ body {
   background-color: var(--el-bg-color) !important;
   border-color: var(--el-border-color) !important;
   box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
-  transition: all 0.3s ease !important;
 }
 
 /* 强制修复所有选择器输入框的背景色 */
@@ -254,7 +314,6 @@ body {
   --el-button-text-color: var(--el-text-color-primary);
   --el-button-bg-color: var(--el-bg-color);
   --el-button-border-color: var(--el-border-color);
-  transition: all 0.3s ease !important;
 }
 
 .el-button:hover {
@@ -280,7 +339,6 @@ body {
   --el-card-border-color: var(--el-border-color);
   background-color: var(--el-bg-color-overlay) !important;
   border-color: var(--el-border-color) !important;
-  transition: all 0.3s ease !important;
 }
 
 .el-card__body {
@@ -355,7 +413,6 @@ body {
 
 .el-menu-item {
   color: var(--el-text-color-primary) !important;
-  transition: all 0.3s ease !important;
 }
 
 .el-menu-item:hover {
@@ -379,7 +436,6 @@ body {
 /* 标签 - 重要的状态标签样式改进 */
 .el-tag {
   border-color: var(--el-border-color) !important;
-  transition: all 0.3s ease !important;
 }
 
 .el-tag--success {
@@ -592,7 +648,6 @@ html, body {
   background: var(--background-blue);
   line-height: 1.6;
   color: var(--text-color);
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* 滚动条样式放大 */

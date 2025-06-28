@@ -187,7 +187,6 @@ export default {
 
 .feature-card {
   cursor: pointer;
-  transition: all 0.3s ease;
   text-align: center;
   padding: 2.2rem 1.8rem;
   border-radius: 16px;
@@ -232,7 +231,6 @@ export default {
   background: var(--card-bg);
   border: 2px solid var(--border-color);
   box-shadow: 0 4px 16px rgba(100, 168, 219, 0.1);
-  transition: all 0.3s ease;
 }
 
 .stat-card:hover {
