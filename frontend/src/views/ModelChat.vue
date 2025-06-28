@@ -171,7 +171,10 @@ export default {
     const messageList = ref(null)
     
     const userName = computed(() => store.getters.userName)
-    const userAvatar = computed(() => `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName.value}`)
+    const userAvatar = computed(() => {
+      // 使用本地默认头像，避免外部服务不稳定的问题
+      return `/imgs/default-avatar.svg`
+    })
     
     const renderer = new marked.Renderer()
     renderer.code = (code, language) => {
@@ -207,7 +210,8 @@ export default {
 
     const loadModels = async () => {
       try {
-        const models = await modelAPI.getModels()
+        const response = await modelAPI.getModels()
+        const models = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : [])
         availableModels.value = models.filter(m => m.status === 'active')
         if (availableModels.value.length > 0 && !selectedModel.value) {
           selectedModel.value = availableModels.value[0].name
@@ -240,13 +244,15 @@ export default {
 
     const loadSessions = async () => {
       try {
-        const sessions = await chatAPI.getSessions()
+        const response = await chatAPI.getSessions()
+        const sessions = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : [])
         chatSessions.value = sessions
         if (sessions.length > 0 && !currentSession.value) {
           selectSession(sessions[0])
         }
       } catch (error) {
         console.error('加载会话失败:', error)
+        chatSessions.value = []
       }
     }
     
@@ -396,6 +402,8 @@ export default {
       selectSession,
       deleteSession,
       sendMessage,
+      ChatDotRound,
+      Delete,
       Reading
     }
   }
@@ -405,260 +413,208 @@ export default {
 <style scoped>
 @import 'highlight.js/styles/atom-one-dark.css';
 
+/* 聊天容器 */
 .model-chat-container {
-  --sidebar-width: 320px;
-  --header-height: 70px;
-  --border-color: var(--medium-blue);
+  height: 100vh;
   display: flex;
-  height: 100%;
   background: var(--background-blue);
+  overflow: hidden;
 }
 
+/* 左侧边栏 */
 .chat-sidebar {
-  width: var(--sidebar-width);
-  background: var(--card-bg);
-  border-right: 3px solid var(--border-color);
-  box-shadow: 4px 0 12px rgba(100, 168, 219, 0.1);
+  width: 350px;
+  background: var(--bg-color);
+  border-right: 2px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  max-height: 100vh;
   overflow: hidden;
 }
 
 .sidebar-header {
-  padding: 2rem;
+  padding: 1.5rem;
   border-bottom: 2px solid var(--border-color);
   background: var(--bg-color);
 }
 
 .sidebar-header .el-button {
-  height: 48px;
-  font-size: 1.1rem;
+  height: 56px;
+  font-size: 1.3rem;
   font-weight: 600;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
-  border: none;
-  box-shadow: 0 4px 12px rgba(100, 168, 219, 0.3);
-  transition: all 0.3s ease;
 }
 
-.sidebar-header .el-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(100, 168, 219, 0.4);
-}
-
+/* 会话列表 */
 .session-list {
   flex: 1;
   padding: 1rem;
-  overflow-y: auto;
-  max-height: calc(100vh - 120px);
-}
-
-.session-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.session-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.session-list::-webkit-scrollbar-thumb {
-  background: var(--medium-blue);
-  border-radius: 3px;
-}
-
-.session-list::-webkit-scrollbar-thumb:hover {
-  background: var(--dark-blue);
 }
 
 .session-item {
-  padding: 1.2rem 1.5rem;
-  margin-bottom: 0.8rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
   border-radius: 12px;
+  background: var(--bg-color);
+  border: 2px solid var(--border-color);
   cursor: pointer;
   transition: all 0.3s ease;
-  background: var(--bg-color);
-  border: 2px solid transparent;
-  color: var(--text-color);
 }
 
 .session-item:hover {
   background: var(--light-blue);
   border-color: var(--medium-blue);
-  transform: translateX(8px);
-  color: var(--text-color);
+  transform: translateX(4px);
 }
 
 .session-item.active {
   background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
-  color: white;
   border-color: var(--dark-blue);
+  color: white;
   box-shadow: 0 4px 12px rgba(100, 168, 219, 0.3);
 }
 
 .session-title {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 600;
-  margin-bottom: 0.4rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-bottom: 0.5rem;
+  color: inherit;
 }
 
 .session-info {
-  font-size: 1.1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 1rem;
+  color: inherit;
   opacity: 0.8;
 }
 
 .session-info .el-icon {
-  font-size: 1.4rem;
-  transition: all 0.3s ease;
-  padding: 0.5rem;
-  border-radius: 8px;
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
 }
 
 .session-info .el-icon:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
 }
 
+/* 主聊天区域 */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--background-blue);
+  overflow: hidden;
 }
 
 .chat-content {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
-.welcome-area {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  background: var(--card-bg);
-  margin: 2rem;
-  border-radius: 20px;
-  border: 2px solid var(--border-color);
-}
-
-.welcome-area .el-icon {
-  font-size: 80px;
-  color: var(--medium-blue);
-  margin-bottom: 2rem;
-}
-
-.welcome-area h2 {
-  font-size: 3.5rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin: 1rem 0;
-}
-
-.welcome-area p {
-  font-size: 1.8rem;
-  color: var(--primary-blue);
-  font-weight: 500;
-}
-
+/* 聊天头部 */
 .chat-header {
-  height: var(--header-height);
-  padding: 0 3rem;
-  background: var(--card-bg);
-  border-bottom: 3px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 12px rgba(100, 168, 219, 0.1);
+  padding: 1.5rem 2rem;
+  background: var(--bg-color);
+  border-bottom: 2px solid var(--border-color);
 }
 
 .header-title {
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: var(--text-color);
 }
 
-.header-model-selector {
-  display: flex;
-  align-items: center;
-  font-size: 1.3rem;
-}
-
-.header-model-selector .el-select {
-  width: 200px;
-}
-
+/* 消息列表 */
 .message-list {
   flex: 1;
-  padding: 2rem;
+  padding: 1rem 2rem;
   background: var(--background-blue);
 }
 
 .message-item {
-  margin-bottom: 2rem;
   display: flex;
+  margin-bottom: 2rem;
   gap: 1rem;
 }
 
 .message-item.user {
-  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.message-item.user .message-content-wrapper {
+  order: -1;
+  text-align: right;
 }
 
 .message-avatar {
-  width: 56px;
-  height: 56px;
   flex-shrink: 0;
+  border: 2px solid var(--border-color);
 }
 
 .message-content-wrapper {
-  flex: 1;
-  max-width: calc(100% - 80px);
+  max-width: 70%;
+  background: var(--bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-item.user .message-content-wrapper {
+  background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
+  color: white;
+  border-color: var(--dark-blue);
 }
 
 .message-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  font-size: 1.1rem;
-  color: var(--primary-blue);
-  font-weight: 500;
-}
-
-.message-time {
+  margin-bottom: 0.8rem;
   font-size: 1rem;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .message-text {
-  font-size: 1.3rem;
-  line-height: 1.7;
-  padding: 1.8rem 2.2rem;
-  border-radius: 20px;
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  box-shadow: 0 4px 16px rgba(100, 168, 219, 0.1);
+  font-size: 1.2rem;
+  line-height: 1.6;
+  color: inherit;
+}
+
+/* 欢迎区域 */
+.welcome-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
   color: var(--text-color);
 }
 
-.message-item.user .message-text {
-  background: linear-gradient(135deg, var(--primary-blue), var(--dark-blue));
-  color: white;
-  border-color: var(--dark-blue);
+.welcome-area h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-color);
 }
 
+.welcome-area p {
+  font-size: 1.3rem;
+  opacity: 0.7;
+  margin: 0;
+  color: var(--text-color);
+}
+
+/* 输入区域 */
 .chat-input-area {
   padding: 2rem;
-  background: var(--card-bg);
-  border-top: 3px solid var(--border-color);
+  background: var(--bg-color);
+  border-top: 2px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -672,12 +628,7 @@ export default {
   gap: 2rem;
 }
 
-.model-selector {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
+.model-selector,
 .prompt-selector {
   display: flex;
   align-items: center;
@@ -698,74 +649,9 @@ export default {
   white-space: nowrap;
 }
 
-.model-select {
-  width: 200px;
-}
-
-.model-select .el-input__inner {
-  border-radius: 12px;
-  border: 2px solid var(--light-blue);
-  font-size: 1.2rem;
-  height: 48px;
-  background: var(--bg-color);
-  color: var(--text-color);
-}
-
-.model-select.is-focus .el-input__inner {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(100, 168, 219, 0.15);
-}
-
+.model-select,
 .prompt-select {
   width: 200px;
-}
-
-.prompt-select .el-input__inner {
-  border-radius: 12px;
-  border: 2px solid var(--light-blue);
-  font-size: 1.2rem;
-  height: 48px;
-  background: var(--bg-color);
-  color: var(--text-color);
-}
-
-.prompt-select.is-focus .el-input__inner {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(100, 168, 219, 0.15);
-}
-
-/* 流式输出开关 */
-.streaming-option .el-switch {
-  --el-switch-on-color: var(--primary-blue);
-  --el-switch-off-color: var(--medium-blue);
-}
-
-.streaming-option .el-switch__core {
-  height: 24px;
-  min-width: 48px;
-  border-radius: 12px;
-}
-
-.streaming-option .el-switch__action {
-  width: 20px;
-  height: 20px;
-}
-
-/* 输入框 */
-.message-input .el-textarea__inner {
-  border-radius: 16px;
-  border: 2px solid var(--light-blue);
-  font-size: 1.3rem;
-  padding: 1.5rem;
-  min-height: 120px;
-  resize: none;
-  background: var(--bg-color);
-  color: var(--text-color);
-}
-
-.message-input.is-focus .el-textarea__inner {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 4px rgba(100, 168, 219, 0.1);
 }
 
 /* 发送按钮区域 */
@@ -791,68 +677,31 @@ export default {
   box-shadow: 0 8px 20px rgba(100, 168, 219, 0.4);
 }
 
-/* Element Plus 组件深色主题适配 */
-.chat-input-area :deep(.el-select-dropdown) {
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-.chat-input-area :deep(.el-select-dropdown__item) {
-  color: var(--text-color);
-  font-size: 1.2rem;
-  padding: 12px 16px;
-}
-
-.chat-input-area :deep(.el-select-dropdown__item:hover) {
-  background: var(--light-blue);
-  color: var(--dark-blue);
-}
-
-.chat-input-area :deep(.el-select-dropdown__item.selected) {
-  background: var(--primary-blue);
-  color: white;
-  font-weight: 600;
-}
-
-.chat-input-area :deep(.el-popper.is-dark .el-tooltip__content) {
-  background: var(--card-bg);
-  border: 2px solid var(--border-color);
-  color: var(--text-color);
-}
-
-/* 输入框placeholder适配 */
-.message-input :deep(.el-textarea__inner::placeholder) {
-  color: var(--placeholder-color);
-}
-
-.model-select :deep(.el-input__inner::placeholder) {
-  color: var(--placeholder-color);
-}
-
 /* 代码高亮样式调整 */
 .message-text :deep(pre) {
-  background: var(--dark-blue) !important;
+  background: var(--el-color-info-light-9) !important;
   padding: 1.5rem !important;
   border-radius: 12px !important;
   font-size: 1.1rem !important;
   margin: 1rem 0 !important;
+  border: 1px solid var(--el-border-color) !important;
 }
 
 .message-text :deep(code) {
-  background: var(--light-blue) !important;
+  background: var(--el-color-info-light-9) !important;
   padding: 0.3rem 0.6rem !important;
   border-radius: 6px !important;
   font-size: 1.1rem !important;
-  color: var(--dark-blue) !important;
+  color: var(--el-text-color-primary) !important;
+  border: 1px solid var(--el-border-color) !important;
 }
 
 .message-text :deep(blockquote) {
-  border-left: 4px solid var(--primary-blue) !important;
+  border-left: 4px solid var(--el-color-primary) !important;
   padding-left: 1.5rem !important;
-  background: var(--light-blue) !important;
+  background: var(--el-color-primary-light-9) !important;
   margin: 1rem 0 !important;
   border-radius: 0 12px 12px 0 !important;
+  color: var(--el-text-color-primary) !important;
 }
 </style> 

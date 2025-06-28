@@ -1,6 +1,8 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
+  <div>
+    <AuthNavbar />
+    <div class="login-container">
+      <div class="login-card">
       <div class="login-header">
         <h1>企业模型训练平台</h1>
         <p>智能化模型训练与管理解决方案</p>
@@ -61,6 +63,7 @@
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <script>
@@ -70,9 +73,13 @@ import { useStore } from 'vuex'
 import { message } from '../utils/message'
 import { User, Lock } from '@element-plus/icons-vue'
 import { authAPI } from '../utils/api'
+import AuthNavbar from '../components/AuthNavbar.vue'
 
 export default {
   name: 'Login',
+  components: {
+    AuthNavbar
+  },
   setup() {
     const router = useRouter()
     const store = useStore()
@@ -103,10 +110,11 @@ export default {
         const response = await authAPI.login(loginData)
         
         // 保存用户信息到store
-        await store.dispatch('login', response.user)
+        store.dispatch('login', response.data.user)
         
-        message.success(response.message || '登录成功')
-        router.push('/')
+        message.success(response.data.message || '登录成功')
+        
+        router.push('/dashboard')
         
       } catch (error) {
         // 全局拦截器会处理错误提示，这里留空或只记录日志
@@ -134,13 +142,14 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
+  margin-top: 60px;
   padding: 1.5rem;
   background: linear-gradient(135deg, var(--light-blue) 0%, var(--medium-blue) 50%, var(--primary-blue) 100%);
 }
 
 .login-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 20px;
   box-shadow: 0 12px 48px rgba(100, 168, 219, 0.2);
   padding: 3rem 2.5rem;
@@ -165,7 +174,7 @@ export default {
 
 .login-header p {
   font-size: 1.1rem;
-  color: #606266;
+  color: var(--text-color);
   margin: 0;
   font-weight: 400;
 }

@@ -7,42 +7,42 @@
         class="sidebar-menu"
         @select="handleMenuSelect"
       >
-        <el-menu-item index="/">
+        <el-menu-item index="/dashboard">
           <el-icon><House /></el-icon>
           <span>首页</span>
         </el-menu-item>
         
-        <el-menu-item index="/chat">
+        <el-menu-item index="/dashboard/chat">
           <el-icon><ChatDotRound /></el-icon>
           <span>模型对话</span>
         </el-menu-item>
         
-        <el-menu-item index="/test">
+        <el-menu-item index="/dashboard/model-test">
           <el-icon><Monitor /></el-icon>
           <span>模型测试</span>
         </el-menu-item>
         
-        <el-menu-item index="/training">
+        <el-menu-item index="/dashboard/training">
           <el-icon><Monitor /></el-icon>
           <span>模型训练</span>
         </el-menu-item>
 
-        <el-menu-item index="/swanlab">
+        <el-menu-item index="/dashboard/training-viz">
           <el-icon><TrendCharts /></el-icon>
           <span>训练可视化</span>
         </el-menu-item>
       
-        <el-menu-item index="/system-prompt">
+        <el-menu-item index="/dashboard/prompt-management">
           <el-icon><Document /></el-icon>
           <span>系统提示词</span>
         </el-menu-item>
         
-        <el-menu-item index="/config/models">
+        <el-menu-item index="/dashboard/model-config">
           <el-icon><Coin /></el-icon>
           <span>模型配置</span>
         </el-menu-item>
 
-        <el-menu-item v-if="isAdmin" index="/admin">
+        <el-menu-item v-if="isAdmin" index="/dashboard/admin">
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
@@ -128,9 +128,13 @@ export default {
     const isAdmin = computed(() => store.getters.isAdmin)
     const activeMenu = computed(() => store.getters.activeMenu)
     const isDarkMode = computed(() => store.getters.isDarkMode)
-    const userAvatar = computed(() => `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName.value}`)
+    const userAvatar = computed(() => {
+      // 使用本地默认头像，避免外部服务不稳定的问题
+      return `/imgs/default-avatar.svg`
+    })
     
     const handleCommand = (command) => {
+      console.log('📋 用户操作:', command)
       if (command === 'logout') {
         store.dispatch('logout')
         router.push('/login')
@@ -139,6 +143,7 @@ export default {
     }
     
     const handleMenuSelect = (index) => {
+      console.log('📍 菜单选择:', index)
       store.dispatch('setActiveMenu', index)
     }
     

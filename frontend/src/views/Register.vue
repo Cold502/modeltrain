@@ -1,5 +1,7 @@
 <template>
-  <div class="register-container">
+  <div>
+    <AuthNavbar />
+    <div class="register-container">
     <div class="register-card">
       <div class="register-header">
         <h1>注册账号</h1>
@@ -88,6 +90,7 @@
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <script>
@@ -96,13 +99,15 @@ import { useRouter } from 'vue-router'
 import { message } from '../utils/message'
 import { authAPI } from '../utils/api'
 import { User, Lock, Message } from '@element-plus/icons-vue'
+import AuthNavbar from '../components/AuthNavbar.vue'
 
 export default {
   name: 'Register',
   components: {
     User,
     Lock,
-    Message
+    Message,
+    AuthNavbar
   },
   setup() {
     const router = useRouter()
@@ -193,13 +198,14 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
+  margin-top: 60px;
   padding: 1.5rem;
   background: linear-gradient(135deg, var(--light-blue) 0%, var(--medium-blue) 50%, var(--primary-blue) 100%);
 }
 
 .register-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 20px;
   box-shadow: 0 12px 48px rgba(100, 168, 219, 0.2);
   padding: 3rem 2.5rem;
@@ -224,7 +230,7 @@ export default {
 
 .register-header p {
   font-size: 1.1rem;
-  color: #606266;
+  color: var(--text-color);
   margin: 0;
   font-weight: 400;
 }

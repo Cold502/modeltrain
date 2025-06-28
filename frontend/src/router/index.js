@@ -17,25 +17,26 @@ import ModelConfig from '../views/ModelConfig.vue'
 
 const routes = [
   {
+    path: '/',
+    redirect: '/login'
+  },
+  {
     path: '/login',
     name: 'Login',
-    component: Login,
-    meta: { requiresAuth: false }
+    component: () => import('@/views/Login.vue')
   },
   {
     path: '/register',
     name: 'Register',
-    component: Register,
-    meta: { requiresAuth: false }
+    component: () => import('@/views/Register.vue')
   },
   {
     path: '/reset-password',
     name: 'ResetPassword',
-    component: ResetPassword,
-    meta: { requiresAuth: false }
+    component: () => import('@/views/ResetPassword.vue')
   },
   {
-    path: '/',
+    path: '/dashboard',
     component: Layout,
     meta: { requiresAuth: true },
     children: [
@@ -46,33 +47,33 @@ const routes = [
       },
       {
         path: 'chat',
-        name: 'ModelChat',
+        name: 'Chat',
         component: ModelChat
       },
       {
-        path: 'test',
-        name: 'ModelTest',
-        component: ModelTest
-      },
-      {
         path: 'training',
-        name: 'ModelTraining',
+        name: 'Training',
         component: ModelTraining
       },
       {
-        path: 'config/models',
+        path: 'training-viz',
+        name: 'TrainingViz',
+        component: SwanLabViz
+      },
+      {
+        path: 'model-config',
         name: 'ModelConfig',
         component: ModelConfig
       },
       {
-        path: 'system-prompt',
-        name: 'SystemPrompt',
-        component: SystemPrompt
+        path: 'model-test',
+        name: 'ModelTest',
+        component: ModelTest
       },
       {
-        path: 'swanlab',
-        name: 'SwanLabViz',
-        component: SwanLabViz
+        path: 'prompt-management',
+        name: 'PromptManagement',
+        component: SystemPrompt
       },
       {
         path: 'admin',
@@ -105,10 +106,10 @@ router.beforeEach((to, from, next) => {
     next('/login')
   } else if (requiresAdmin && !isAdmin) {
     console.log('权限不足，重定向到首页')
-    next('/')
+    next('/dashboard')
   } else if ((to.name === 'Login' || to.name === 'Register') && isLoggedIn) {
     console.log('已登录，重定向到首页')
-    next('/')
+    next('/dashboard')
   } else {
     console.log('路由守卫通过')
     next()

@@ -1,11 +1,12 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 import { message } from './message'
 import store from '../store'
 import router from '../router'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
@@ -26,9 +27,14 @@ api.interceptors.request.use(
         config.data = { ...config.data, user_id: user.id }
       }
     }
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   error => {
+    console.error('请求错误:', error)
     return Promise.reject(error)
   }
 )
@@ -36,9 +42,12 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
-    return response.data
+    return response
   },
   error => {
+    console.error('响应错误:', error)
+    
+    // 处理常见错误
     if (error.response) {
       const { status, data } = error.response
       
@@ -64,10 +73,12 @@ api.interceptors.response.use(
           message.error('服务器内部错误')
           break
         default:
-          message.error(data.detail || '请求失败')
+          message.error(data.detail || `请求失败 (${status})`)
       }
-    } else {
+    } else if (error.request) {
       message.error('网络错误，请检查网络连接')
+    } else {
+      message.error('请求配置错误')
     }
     
     return Promise.reject(error)
@@ -148,10 +159,13 @@ export const modelAPI = {
 }
 
 export const modelConfigAPI = {
-  getModels: () => api.get('/config/models'),
-  addModel: (modelData) => api.post('/config/models', modelData),
-  updateModel: (modelId, modelData) => api.put(`/config/models/${modelId}`, modelData),
-  deleteModel: (modelId) => api.delete(`/config/models/${modelId}`),
+  getProviders: () => api.get('/model-config/providers'),
+  getModels: () => api.get('/model-config/'),
+  addModel: (modelData) => api.post('/model-config/', modelData),
+  updateModel: (modelId, modelData) => api.put(`/model-config/${modelId}`, modelData),
+  deleteModel: (modelId) => api.delete(`/model-config/${modelId}`),
+  getAvailableModels: (providerId) => api.get('/model-config/models', { params: { provider_id: providerId } }),
+  refreshModels: (refreshData) => api.post('/model-config/models/refresh', refreshData),
 }
 
 export const trainingAPI = {
@@ -186,7 +200,7 @@ export const adminAPI = {
   updateUserRole: (userId, isAdmin) => api.put(`/admin/users/${userId}/role`, { is_admin: isAdmin }),
   
   // 系统统计
-  getAdminStats: () => api.get('/admin/stats')
+  getAdminStats: () => api.get('/api/admin/stats')
 }
 
 export default api 

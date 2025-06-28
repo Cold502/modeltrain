@@ -1,6 +1,11 @@
 import { createStore } from 'vuex'
+import model from './modules/model'
 
 export default createStore({
+  modules: {
+    model
+  },
+  
   state: {
     user: null,
     isLoggedIn: false,
@@ -73,7 +78,7 @@ export default createStore({
     
     loadUserFromStorage({ commit }) {
       const userStr = localStorage.getItem('user')
-      if (userStr) {
+      if (userStr && userStr !== 'undefined') {
         const user = JSON.parse(userStr)
         commit('SET_USER', user)
       }

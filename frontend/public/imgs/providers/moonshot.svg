@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- 月亮形状 -->
+  <circle cx="40" cy="40" r="25" fill="#4A90E2" opacity="0.8"/>
+  <circle cx="45" cy="35" r="22" fill="#FFF"/>
+  
+  <!-- 星星装饰 -->
+  <g fill="#4A90E2">
+    <polygon points="70,25 72,30 77,30 73.5,33.5 75,38 70,35 65,38 66.5,33.5 63,30 68,30" transform="scale(0.6)"/>
+    <polygon points="80,60 81.5,63 85,63 82.5,65.5 83.5,69 80,67 76.5,69 77.5,65.5 75,63 78.5,63" transform="scale(0.5)"/>
+    <polygon points="25,70 26.5,73 30,73 27.5,75.5 28.5,79 25,77 21.5,79 22.5,75.5 20,73 23.5,73" transform="scale(0.4)"/>
+  </g>
+  
+  <!-- 发光效果 -->
+  <circle cx="40" cy="40" r="30" fill="none" stroke="#4A90E2" stroke-width="1" opacity="0.3"/>
+</svg> 

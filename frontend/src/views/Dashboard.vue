@@ -98,27 +98,31 @@ export default {
     const loadStats = async () => {
       try {
         // 加载模型统计
-        const models = await modelAPI.getModels()
+        const response = await modelAPI.getModels()
+        const models = Array.isArray(response.data) ? response.data : []
         modelStats.value = {
           available: models.filter(m => m.status === 'active').length,
           total: models.length
         }
         
         // 加载训练任务统计
-        const tasks = await trainingAPI.getTrainingTasks()
+        const tasksResponse = await trainingAPI.getTrainingTasks()
+        const tasks = Array.isArray(tasksResponse.data) ? tasksResponse.data : []
         trainingStats.value = {
           total: tasks.length,
           running: tasks.filter(t => t.status === 'running').length
         }
         
         // 加载对话会话统计
-        const sessions = await chatAPI.getSessions()
+        const sessionsResponse = await chatAPI.getSessions()
+        const sessions = Array.isArray(sessionsResponse.data) ? sessionsResponse.data : []
         chatStats.value = {
           sessions: sessions.length
         }
         
         // 加载数据集统计
-        const datasets = await trainingAPI.getDatasets()
+        const datasetsResponse = await trainingAPI.getDatasets()
+        const datasets = Array.isArray(datasetsResponse.data) ? datasetsResponse.data : []
         datasetStats.value = {
           total: datasets.length
         }
