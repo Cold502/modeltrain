@@ -1,7 +1,7 @@
 <template>
   <div>
     <AuthNavbar />
-    <div class="login-container">
+  <div class="login-container">
     <div class="login-card">
       <div class="login-header">
         <h1>重置密码</h1>
@@ -54,7 +54,7 @@
         </div>
       </el-form>
     </div>
-  </div>
+    </div>
   </div>
 </template>
 

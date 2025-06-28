@@ -460,7 +460,7 @@ export default {
         modelConfigForm.modelName = ''
         if (providerId) {
           store.dispatch('model/fetchProviderModels', providerId)
-        }
+      }
       } else if (typeof providerId === 'string') {
         // 自定义提供商
         modelConfigForm.providerId = 'custom'

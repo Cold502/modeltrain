@@ -392,7 +392,7 @@ async def create_model_config(
         # 创建新的模型配置
         import uuid
         db_config = ModelConfigModel(
-            id=str(uuid.uuid4()),
+        id=str(uuid.uuid4()),
             provider_id=config.provider_id,
             provider_name=config.provider_name,
             endpoint=config.endpoint,

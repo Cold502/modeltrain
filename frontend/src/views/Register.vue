@@ -1,7 +1,7 @@
 <template>
   <div>
     <AuthNavbar />
-    <div class="register-container">
+  <div class="register-container">
     <div class="register-card">
       <div class="register-header">
         <h1>注册账号</h1>
@@ -88,8 +88,8 @@
       <div class="register-footer">
         <p>企业级AI模型训练平台</p>
       </div>
+      </div>
     </div>
-  </div>
   </div>
 </template>
 

@@ -1,8 +1,8 @@
 <template>
   <div>
     <AuthNavbar />
-    <div class="login-container">
-      <div class="login-card">
+  <div class="login-container">
+    <div class="login-card">
       <div class="login-header">
         <h1>企业模型训练平台</h1>
         <p>智能化模型训练与管理解决方案</p>
@@ -61,8 +61,8 @@
       <div class="login-footer">
         <p>默认管理员账号：admin / admin</p>
       </div>
+      </div>
     </div>
-  </div>
   </div>
 </template>
 
