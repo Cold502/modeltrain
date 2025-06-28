@@ -200,7 +200,7 @@ export const adminAPI = {
   updateUserRole: (userId, isAdmin) => api.put(`/admin/users/${userId}/role`, { is_admin: isAdmin }),
   
   // 系统统计
-  getAdminStats: () => api.get('/api/admin/stats')
+  getAdminStats: () => api.get('/admin/stats')
 }
 
 export default api 

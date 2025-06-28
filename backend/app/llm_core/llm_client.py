@@ -19,6 +19,12 @@ MODEL_PROVIDERS = [
         'default_models': []
     },
     {
+        'id': 'vllm',
+        'name': 'VLLM',
+        'default_endpoint': 'http://127.0.0.1:8000/v1/',
+        'default_models': []
+    },
+    {
         'id': 'openai',
         'name': 'OpenAI',
         'default_endpoint': 'https://api.openai.com/v1/',
@@ -107,7 +113,8 @@ class LLMClient:
         if provider_lower == 'ollama':
             return OllamaClient(config)
         else:
-            # 其他提供商使用OpenAI兼容客户端
+            # vLLM和其他提供商使用OpenAI兼容客户端
+            # vLLM提供OpenAI兼容的API接口，可以直接使用OpenAI客户端
             return OpenAIClient(config)
     
     async def chat(self, messages: List[Dict], options: Optional[Dict] = None) -> Dict:

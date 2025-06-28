@@ -142,7 +142,7 @@ API Key: sk-xxx...
 模型: gpt-4o, gpt-4o-mini
 ```
 
-#### 2. Ollama (本地)
+#### 2. Ollama 
 ```
 提供商: ollama
 端点: http://127.0.0.1:11434/api

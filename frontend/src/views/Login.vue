@@ -107,14 +107,22 @@ export default {
         await loginForm.value.validate()
         loading.value = true
         
+        console.log('🔐 开始登录:', loginData)
         const response = await authAPI.login(loginData)
+        console.log('✅ 登录响应:', response.data)
         
         // 保存用户信息到store
-        store.dispatch('login', response.data.user)
+        await store.dispatch('login', response.data.user)
+        console.log('💾 用户信息已保存到store:', store.state.user)
+        console.log('🔑 登录状态:', store.state.isLoggedIn)
         
         message.success(response.data.message || '登录成功')
         
-        router.push('/dashboard')
+        // 等待一下确保状态更新完成
+        setTimeout(() => {
+          console.log('🚀 准备跳转到dashboard')
+          router.push('/dashboard')
+        }, 100)
         
       } catch (error) {
         // 全局拦截器会处理错误提示，这里留空或只记录日志

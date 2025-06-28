@@ -34,11 +34,19 @@ def create_admin_user(db: Session):
             nickname="admin",
             password_hash=get_password_hash("admin"),
             role="admin",
+            is_admin=True,
             is_active=True
         )
         db.add(admin_user)
         db.commit()
         print("默认管理员账号已创建：admin / admin")
+    else:
+        # 如果admin用户已存在但is_admin为False，更新为True
+        if not admin_user.is_admin:
+            admin_user.is_admin = True
+            admin_user.role = "admin"
+            db.commit()
+            print("admin用户权限已更新为管理员")
 
 def get_user_by_email(db: Session, email: str) -> User:
     """通过邮箱获取用户"""

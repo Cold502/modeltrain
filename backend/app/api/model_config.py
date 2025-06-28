@@ -20,12 +20,12 @@ router = APIRouter(prefix="/model-config", tags=["模型配置"])
 DEFAULT_PROVIDERS = [
     {
         "id": "ollama",
-        "name": "Ollama (本地)", 
+        "name": "Ollama ", 
         "api_url": "http://127.0.0.1:11434/api"
     },
     {
         "id": "vllm",
-        "name": "VLLM (本地)",
+        "name": "VLLM ",
         "api_url": "http://127.0.0.1:8000/v1/"
     },
     {
@@ -97,7 +97,7 @@ DEFAULT_PROVIDERS = [
 
 # 默认模型配置列表（按优先级排序）
 DEFAULT_MODEL_CONFIGS = [
-    # 1. Ollama (本地)
+    # 1. Ollama 
     {
         "provider_id": "ollama",
         "provider_name": "Ollama",
@@ -122,7 +122,7 @@ DEFAULT_MODEL_CONFIGS = [
         "max_tokens": 4096,
         "status": 1
     },
-    # 2. VLLM (本地)
+    # 2. VLLM 
     {
         "provider_id": "vllm",
         "provider_name": "VLLM",
@@ -392,7 +392,8 @@ async def create_model_config(
         # 创建新的模型配置
         import uuid
         db_config = ModelConfigModel(
-        id=str(uuid.uuid4()),
+            id=str(uuid.uuid4()),
+            user_id=1,  # 默认用户ID
             provider_id=config.provider_id,
             provider_name=config.provider_name,
             endpoint=config.endpoint,
@@ -484,22 +485,16 @@ async def refresh_models(
     db: Session = Depends(get_db)
 ):
     """刷新模型列表"""
-    try:
-        models = await fetch_models_from_api(
-            request.endpoint,
-            request.provider_id, 
-            request.api_key
-        )
-        
-        if models:
-            # 更新数据库中的模型列表
-            await update_models_in_db(db, request.provider_id, models)
-        
-        return models
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"刷新模型列表失败: {str(e)}")
+    models = await fetch_models_from_api(
+        request.endpoint,
+        request.provider_id, 
+        request.api_key
+    )
+    
+    if models:
+        await update_models_in_db(db, request.provider_id, models)
+    
+    return models
 
 # 辅助函数
 def camel_to_snake(name: str) -> str:
@@ -510,83 +505,70 @@ def camel_to_snake(name: str) -> str:
 
 async def fetch_models_from_api(endpoint: str, provider_id: str, api_key: Optional[str] = None):
     """从API获取模型列表"""
-    try:
-        headers = {}
-        if api_key:
-            if provider_id.lower() == "openai":
-                headers["Authorization"] = f"Bearer {api_key}"
-            elif provider_id.lower() == "deepseek":
-                headers["Authorization"] = f"Bearer {api_key}"
-            elif provider_id.lower() == "zhipu":
-                headers["Authorization"] = f"Bearer {api_key}"
-            else:
-                headers["Authorization"] = f"Bearer {api_key}"
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            if provider_id.lower() == "ollama":
-                # Ollama API
-                response = await client.get(f"{endpoint}/tags")
-            else:
-                # OpenAI compatible API
-                models_endpoint = f"{endpoint.rstrip('/')}/models"
-                response = await client.get(models_endpoint, headers=headers)
-            
-            response.raise_for_status()
-            data = response.json()
-            
-            models = []
-            if provider_id.lower() == "ollama":
-                # Ollama格式
-                for model in data.get("models", []):
-                    models.append({
-                        "id": f"{provider_id}_{model['name']}",
-                        "provider_id": provider_id,
-                        "model_id": model["name"],
-                        "model_name": model["name"],
-                        "size": model.get("size", 0),
-                        "created_at": model.get("modified_at")
-                    })
-            else:
-                # OpenAI格式
-                for model in data.get("data", []):
-                    models.append({
-                        "id": f"{provider_id}_{model['id']}",
-                        "provider_id": provider_id,
-                        "model_id": model["id"],
-                        "model_name": model["id"],
-                        "created_at": model.get("created")
-                    })
-            
-            return models
-            
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 401:
-            raise HTTPException(status_code=401, detail="API Key 无效")
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        if provider_id.lower() == "ollama":
+            # Ollama API
+            response = await client.get(f"{endpoint}/tags")
         else:
-            raise HTTPException(status_code=500, detail=f"API请求失败: {e.response.status_code}")
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=408, detail="请求超时")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取模型列表失败: {str(e)}")
+            # OpenAI compatible API (包括vLLM)
+            models_endpoint = f"{endpoint.rstrip('/')}/models"
+            # vLLM通常不需要API key，先尝试不带headers的请求
+            if provider_id.lower() == "vllm":
+                response = await client.get(models_endpoint)
+            else:
+                response = await client.get(models_endpoint, headers=headers)
+        
+        response.raise_for_status()
+        data = response.json()
+        
+        models = []
+        if provider_id.lower() == "ollama":
+            # Ollama格式
+            for model in data.get("models", []):
+                # 生成安全的ID，替换特殊字符
+                safe_model_name = model['name'].replace(':', '_').replace('/', '_').replace('.', '_')
+                models.append({
+                    "id": f"{provider_id}_{safe_model_name}",
+                    "provider_id": provider_id,
+                    "model_id": model["name"],
+                    "model_name": model["name"],
+                    "size": model.get("size", 0),
+                    "created_at": model.get("modified_at")
+                })
+        else:
+            # OpenAI格式（包括vLLM）
+            for model in data.get("data", []):
+                # 生成安全的ID，替换特殊字符
+                safe_model_id = model['id'].replace(':', '_').replace('/', '_').replace('.', '_').replace('-', '_')
+                models.append({
+                    "id": f"{provider_id}_{safe_model_id}",
+                    "provider_id": provider_id,
+                    "model_id": model["id"],
+                    "model_name": model["id"],
+                    "created_at": model.get("created")
+                })
+        
+        return models
 
 async def update_models_in_db(db: Session, provider_id: str, models: List[dict]):
     """更新数据库中的模型列表"""
-    try:
-        # 删除旧的模型数据
-        db.query(ProviderModel).filter(ProviderModel.provider_id == provider_id).delete()
-        
-        # 添加新的模型数据
-        for model_data in models:
-            model = ProviderModel(
-                provider_id=model_data["provider_id"],
-                model_id=model_data["model_id"], 
-                model_name=model_data["model_name"],
-                size=model_data.get("size"),
-                created_at=model_data.get("created_at")
-            )
-            db.add(model)
-        
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise e 
+    # 删除旧的模型数据
+    db.query(ProviderModel).filter(ProviderModel.provider_id == provider_id).delete()
+    
+    # 添加新的模型数据
+    for model_data in models:
+        model = ProviderModel(
+            id=model_data["id"],
+            provider_id=model_data["provider_id"],
+            model_id=model_data["model_id"], 
+            model_name=model_data["model_name"],
+            size=model_data.get("size"),
+            created_at=model_data.get("created_at")
+        )
+        db.add(model)
+    
+    db.commit() 

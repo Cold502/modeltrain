@@ -157,7 +157,7 @@ export default {
     }, { immediate: true })
     
     onMounted(() => {
-      // 从localStorage恢复用户信息和主题设置
+      // 确保用户状态正确加载
       store.dispatch('loadUserFromStorage')
       
       // 设置当前激活菜单

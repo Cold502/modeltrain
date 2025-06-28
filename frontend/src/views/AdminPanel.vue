@@ -174,13 +174,13 @@ export default {
     const loadUsers = async () => {
       loading.value = true
       try {
-        const [usersData, statsData] = await Promise.all([
+        const [usersResponse, statsResponse] = await Promise.all([
           adminAPI.getAllUsers(),
           adminAPI.getAdminStats()
         ])
         
-        users.value = usersData
-        stats.value = statsData
+        users.value = usersResponse.data || []
+        stats.value = statsResponse.data || {}
       } catch (error) {
         console.error('加载用户数据失败:', error)
         message.error('加载用户数据失败')
@@ -396,29 +396,28 @@ export default {
 
 .users-table {
   width: 100%;
-  background: transparent;
-}
-
-.users-table :deep(.el-table__body tr) {
-  background: transparent;
-}
-
-.users-table :deep(.el-table__body tr:hover) {
-  background: var(--light-blue);
 }
 
 .users-table :deep(.el-table td) {
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-color);
   font-size: 1.1rem;
   padding: 1rem 0.8rem;
 }
 
 .users-table :deep(.el-table th) {
-  border-bottom: 2px solid var(--border-color);
   font-size: 1.2rem;
   font-weight: 600;
   padding: 1.2rem 0.8rem;
+}
+
+/* 彻底禁用表格的所有hover效果 */
+.dark-mode .users-table :deep(.el-table__body tr:hover),
+.dark-mode .users-table :deep(.el-table__body tr:hover > td),
+.dark-mode .users-table :deep(.el-table__body tr:hover > td.el-table__cell),
+.dark-mode .users-table :deep(.el-table__body tr.hover-row),
+.dark-mode .users-table :deep(.el-table__body tr.hover-row > td),
+.dark-mode .users-table :deep(.el-table__body tr.hover-row > td.el-table__cell) {
+  background-color: rgba(90, 155, 212, 0.08) !important;
+  background: rgba(90, 155, 212, 0.08) !important;
 }
 
 .status-tag, .role-tag {
