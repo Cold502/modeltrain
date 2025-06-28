@@ -368,7 +368,7 @@ async def get_model_configs(db: Session = Depends(get_db)):
     """获取模型配置列表"""
     try:
         configs = db.query(ModelConfigModel).all()
-    return configs
+        return configs
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模型配置失败: {str(e)}")
 
@@ -406,7 +406,7 @@ async def create_model_config(
         )
         
         db.add(db_config)
-    db.commit()
+        db.commit()
         db.refresh(db_config)
         
         return db_config
@@ -430,13 +430,13 @@ async def update_model_config(
     
         # 更新字段
         update_data = config.dict(exclude_unset=True)
-    for field, value in update_data.items():
+        for field, value in update_data.items():
             # 将驼峰命名转换为下划线命名
             snake_field = camel_to_snake(field)
             if hasattr(db_config, snake_field):
                 setattr(db_config, snake_field, value)
     
-    db.commit()
+        db.commit()
         db.refresh(db_config)
         
         return db_config
