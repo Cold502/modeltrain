@@ -333,8 +333,13 @@ DEFAULT_MODEL_CONFIGS = [
 async def init_default_model_configs(db: Session):
     """初始化默认模型配置到数据库"""
     try:
-        # 按顺序插入，vLLM第一个插入，显示在最上面
-        for config_data in DEFAULT_MODEL_CONFIGS:
+        from datetime import datetime, timedelta
+        
+        # 从过去时间开始，每个配置间隔10毫秒，按顺序往过去排
+        # 这样vLLM会有最晚的时间（最接近现在），在倒序排列时显示在最上面
+        base_time = datetime.now() - timedelta(hours=1)  # 从1小时前开始
+        
+        for i, config_data in enumerate(DEFAULT_MODEL_CONFIGS):
             # 检查是否已存在相同的配置
             existing = db.query(ModelConfigModel).filter(
                 ModelConfigModel.provider_id == config_data["provider_id"],
@@ -344,8 +349,13 @@ async def init_default_model_configs(db: Session):
             
             # 如果不存在，则创建默认配置
             if not existing:
+                # 每个配置间隔10毫秒，按数组顺序递增时间
+                # vLLM在数组最前面，所以时间最晚，在倒序排列时显示在最上面
+                created_time = base_time + timedelta(milliseconds=i * 10)
+                
                 db_config = ModelConfigModel(
                     id=str(uuid.uuid4()),
+                    created_at=created_time,
                     **config_data
                 )
                 db.add(db_config)
@@ -380,7 +390,7 @@ async def get_providers(db: Session = Depends(get_db)):
 async def get_model_configs(db: Session = Depends(get_db)):
     """获取模型配置列表"""
     try:
-        # 按创建时间正序排列，最先插入的在最上面（vLLM优先显示）
+        # 按创建时间正序排列，最早的在最上面
         configs = db.query(ModelConfigModel).order_by(ModelConfigModel.created_at.asc()).all()
         return configs
     except Exception as e:
