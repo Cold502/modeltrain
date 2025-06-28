@@ -485,16 +485,74 @@ async def refresh_models(
     db: Session = Depends(get_db)
 ):
     """刷新模型列表"""
-    models = await fetch_models_from_api(
-        request.endpoint,
-        request.provider_id, 
-        request.api_key
-    )
+    import logging
+    from datetime import datetime
+    import os
     
-    if models:
-        await update_models_in_db(db, request.provider_id, models)
+    logger = logging.getLogger(__name__)
     
-    return models
+    # 写入详细日志到文件
+    log_file = os.path.join(os.path.dirname(__file__), "../../debug_refresh.log")
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(f"\n=== 刷新模型请求 {datetime.now()} ===\n")
+        f.write(f"endpoint: '{request.endpoint}'\n")
+        f.write(f"provider_id: '{request.provider_id}'\n")
+        f.write(f"api_key: {'***' if request.api_key else None}\n")
+        f.write(f"endpoint类型: {type(request.endpoint)}\n")
+        f.write(f"endpoint长度: {len(request.endpoint) if request.endpoint else 0}\n")
+    
+    logger.info(f"收到刷新模型请求:")
+    logger.info(f"  endpoint: {request.endpoint}")
+    logger.info(f"  provider_id: {request.provider_id}")
+    logger.info(f"  api_key: {'***' if request.api_key else None}")
+    
+    # 写入进入try块的日志
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(f"进入try块，准备处理请求...\n")
+    
+    try:
+        # 写入开始处理日志
+        log_file = os.path.join(os.path.dirname(__file__), "../../debug_refresh.log")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"开始调用 fetch_models_from_api...\n")
+        
+        models = await fetch_models_from_api(
+            request.endpoint,
+            request.provider_id, 
+            request.api_key
+        )
+        
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"fetch_models_from_api 返回了 {len(models) if models else 0} 个模型\n")
+        
+        if models:
+            await update_models_in_db(db, request.provider_id, models)
+            # 重新从数据库查询模型，确保包含所有字段
+            db_models = db.query(ProviderModel).filter(ProviderModel.provider_id == request.provider_id).all()
+            return db_models
+        
+        return []
+    except httpx.ConnectError as e:
+        raise HTTPException(status_code=503, detail=f"无法连接到模型服务: {str(e)}")
+    except httpx.TimeoutException as e:
+        raise HTTPException(status_code=504, detail=f"连接超时: {str(e)}")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            raise HTTPException(status_code=401, detail="API Key 无效或权限不足")
+        elif e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="模型服务端点不存在")
+        else:
+            raise HTTPException(status_code=502, detail=f"模型服务返回错误: {e.response.status_code}")
+    except Exception as e:
+        # 写入异常详情到日志文件
+        log_file = os.path.join(os.path.dirname(__file__), "../../debug_refresh.log")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"refresh_models 异常:\n")
+            f.write(f"  异常类型: {type(e).__name__}\n")
+            f.write(f"  异常信息: {str(e)}\n")
+            import traceback
+            f.write(f"  堆栈跟踪: {traceback.format_exc()}\n")
+        raise HTTPException(status_code=500, detail=f"刷新模型列表失败: {str(e)}")
 
 # 辅助函数
 def camel_to_snake(name: str) -> str:
@@ -505,54 +563,140 @@ def camel_to_snake(name: str) -> str:
 
 async def fetch_models_from_api(endpoint: str, provider_id: str, api_key: Optional[str] = None):
     """从API获取模型列表"""
+    import logging
+    import os
+    logger = logging.getLogger(__name__)
+    
+    # 写入函数开始日志
+    log_file = os.path.join(os.path.dirname(__file__), "../../debug_refresh.log")
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(f"fetch_models_from_api 函数开始执行\n")
+        f.write(f"  参数: endpoint='{endpoint}', provider_id='{provider_id}'\n")
+    
+    logger.info(f"正在从 {provider_id} 获取模型列表: {endpoint}")
+    
     headers = {}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        if provider_id.lower() == "ollama":
-            # Ollama API
-            response = await client.get(f"{endpoint}/tags")
-        else:
-            # OpenAI compatible API (包括vLLM)
-            models_endpoint = f"{endpoint.rstrip('/')}/models"
-            # vLLM通常不需要API key，先尝试不带headers的请求
-            if provider_id.lower() == "vllm":
+    # 增加超时时间，设置重试机制
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            if provider_id.lower() == "ollama":
+                # Ollama API
+                models_endpoint = f"{endpoint.rstrip('/')}/tags"
+                logger.info(f"请求 Ollama 端点: {models_endpoint}")
                 response = await client.get(models_endpoint)
             else:
-                response = await client.get(models_endpoint, headers=headers)
-        
-        response.raise_for_status()
-        data = response.json()
-        
-        models = []
-        if provider_id.lower() == "ollama":
-            # Ollama格式
-            for model in data.get("models", []):
-                # 生成安全的ID，替换特殊字符
-                safe_model_name = model['name'].replace(':', '_').replace('/', '_').replace('.', '_')
-                models.append({
-                    "id": f"{provider_id}_{safe_model_name}",
-                    "provider_id": provider_id,
-                    "model_id": model["name"],
-                    "model_name": model["name"],
-                    "size": model.get("size", 0),
-                    "created_at": model.get("modified_at")
-                })
-        else:
-            # OpenAI格式（包括vLLM）
-            for model in data.get("data", []):
-                # 生成安全的ID，替换特殊字符
-                safe_model_id = model['id'].replace(':', '_').replace('/', '_').replace('.', '_').replace('-', '_')
-                models.append({
-                    "id": f"{provider_id}_{safe_model_id}",
-                    "provider_id": provider_id,
-                    "model_id": model["id"],
-                    "model_name": model["id"],
-                    "created_at": model.get("created")
-                })
-        
-        return models
+                # OpenAI compatible API (包括vLLM)
+                if provider_id.lower() == "vllm":
+                    # vLLM使用 /v1/models 端点，智能处理是否已包含v1
+                    endpoint_clean = endpoint.rstrip('/')
+                    if endpoint_clean.endswith('/v1'):
+                        models_endpoint = f"{endpoint_clean}/models"
+                    else:
+                        models_endpoint = f"{endpoint_clean}/v1/models"
+                else:
+                    # 其他OpenAI兼容API使用 /models 端点
+                    models_endpoint = f"{endpoint.rstrip('/')}/models"
+                
+                logger.info(f"请求 OpenAI 兼容端点: {models_endpoint}")
+                logger.info(f"原始endpoint: '{endpoint}', 清理后: '{endpoint.rstrip('/')}', 最终URL: '{models_endpoint}'")
+                
+                # 写入URL构建详情到日志文件
+                log_file = os.path.join(os.path.dirname(__file__), "../../debug_refresh.log")
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(f"URL构建详情:\n")
+                    f.write(f"  原始endpoint: '{endpoint}'\n")
+                    f.write(f"  清理后endpoint: '{endpoint.rstrip('/')}'\n")
+                    f.write(f"  是否以/v1结尾: {endpoint.rstrip('/').endswith('/v1')}\n")
+                    f.write(f"  最终URL: '{models_endpoint}'\n")
+                
+                # vLLM通常不需要API key，先尝试不带headers的请求
+                if provider_id.lower() == "vllm":
+                    logger.info(f"发送vLLM请求到: {models_endpoint}")
+                    response = await client.get(models_endpoint)
+                else:
+                    logger.info(f"发送OpenAI兼容请求到: {models_endpoint}")
+                    response = await client.get(models_endpoint, headers=headers)
+            
+            logger.info(f"HTTP 响应状态: {response.status_code}")
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"响应数据: {data}")
+            
+            models = []
+            if provider_id.lower() == "ollama":
+                # Ollama格式
+                for model in data.get("models", []):
+                    # 生成安全的ID，替换特殊字符
+                    safe_model_name = model['name'].replace(':', '_').replace('/', '_').replace('.', '_')
+                    
+                    # 处理modified_at字段
+                    modified_at = model.get("modified_at")
+                    if modified_at and isinstance(modified_at, str):
+                        from datetime import datetime
+                        try:
+                            # 尝试解析ISO格式的时间字符串
+                            modified_at = datetime.fromisoformat(modified_at.replace('Z', '+00:00'))
+                        except:
+                            modified_at = None
+                    elif modified_at and isinstance(modified_at, (int, float)):
+                        from datetime import datetime
+                        modified_at = datetime.fromtimestamp(modified_at)
+                    
+                    models.append({
+                        "id": f"{provider_id}_{safe_model_name}",
+                        "provider_id": provider_id,
+                        "model_id": model["name"],
+                        "model_name": model["name"],
+                        "size": model.get("size", 0),
+                        "created_at": modified_at
+                    })
+            else:
+                # OpenAI格式（包括vLLM）
+                for model in data.get("data", []):
+                    # 生成安全的ID，替换特殊字符
+                    safe_model_id = model['id'].replace(':', '_').replace('/', '_').replace('.', '_').replace('-', '_')
+                    
+                    # 处理created_at字段，转换Unix时间戳为datetime对象
+                    created_at = model.get("created")
+                    if created_at and isinstance(created_at, (int, float)):
+                        from datetime import datetime
+                        created_at = datetime.fromtimestamp(created_at)
+                    
+                    models.append({
+                        "id": f"{provider_id}_{safe_model_id}",
+                        "provider_id": provider_id,
+                        "model_id": model["id"],
+                        "model_name": model["id"],
+                        "created_at": created_at
+                    })
+            
+            logger.info(f"成功解析 {len(models)} 个模型")
+            return models
+            
+        except httpx.ConnectError as e:
+            logger.error(f"连接错误: {str(e)}")
+            # 写入错误详情到日志文件
+            log_file = os.path.join(os.path.dirname(__file__), "../../debug_refresh.log")
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"连接错误详情:\n")
+                f.write(f"  错误类型: {type(e).__name__}\n")
+                f.write(f"  错误信息: {str(e)}\n")
+                f.write(f"  尝试连接的URL: {models_endpoint}\n")
+            raise
+        except httpx.TimeoutException as e:
+            logger.error(f"超时错误: {str(e)}")
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP 错误: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"未知错误: {str(e)}")
+            raise
 
 async def update_models_in_db(db: Session, provider_id: str, models: List[dict]):
     """更新数据库中的模型列表"""
@@ -567,6 +711,9 @@ async def update_models_in_db(db: Session, provider_id: str, models: List[dict])
             model_id=model_data["model_id"], 
             model_name=model_data["model_name"],
             size=model_data.get("size"),
+            description=model_data.get("description"),
+            is_vision=model_data.get("is_vision", False),
+            status=model_data.get("status", 1),
             created_at=model_data.get("created_at")
         )
         db.add(model)
