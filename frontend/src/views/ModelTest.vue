@@ -237,7 +237,7 @@ export default {
         availableConfigs.value = response.data.filter(config => 
           config.model_name && 
           config.endpoint && 
-          (config.provider_id.toLowerCase() === 'ollama' || config.api_key)
+          config.status === 1  // 只显示启用的配置
         )
       } catch (error) {
         message.error('获取模型配置失败')

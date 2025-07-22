@@ -58,59 +58,88 @@ class OllamaClient(BaseClient):
         
         url = f"{base_url}/api/chat"
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            async with client.stream('POST', url, json=payload, headers={
-                'Content-Type': 'application/json'
-            }) as response:
-                if response.status_code != 200:
-                    error_text = await response.aread()
-                    raise Exception(f"API请求失败: {response.status_code} {error_text}")
-                
-                # 创建流式处理器
-                return self._create_stream_processor(response)
-    
-    async def _create_stream_processor(self, response):
-        """创建流式处理器"""
-        buffer = ""
-        is_thinking = False
-        
-        async for chunk in response.aiter_text():
-            buffer += chunk
-            
-            # 处理数据行
-            while '\n' in buffer:
-                line, buffer = buffer.split('\n', 1)
-                line = line.strip()
-                
-                if line:
-                    try:
-                        data = json.loads(line)
-                        message = data.get('message', {})
-                        content = message.get('content', '')
-                        thinking = message.get('thinking', '')
-                        done = data.get('done', False)
+        # 创建流式生成器
+        async def stream_generator():
+            try:
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    async with client.stream('POST', url, json=payload, headers={
+                        'Content-Type': 'application/json'
+                    }) as response:
+                        if response.status_code != 200:
+                            error_text = await response.aread()
+                            raise Exception(f"API请求失败: {response.status_code} {error_text}")
                         
-                        # 处理推理内容
-                        if thinking:
-                            if not is_thinking:
-                                yield '<think>'
-                                is_thinking = True
-                            yield thinking
+                        buffer = ""
+                        is_thinking = False
                         
-                        # 处理正常内容
-                        if content:
-                            if is_thinking:
-                                yield '</think>'
-                                is_thinking = False
-                            yield content
-                        
-                        if done:
-                            if is_thinking:
-                                yield '</think>'
-                            break
+                        async for chunk in response.aiter_text():
+                            buffer += chunk
                             
-                    except json.JSONDecodeError:
-                        continue
+                            # 处理数据行
+                            while '\n' in buffer:
+                                line, buffer = buffer.split('\n', 1)
+                                line = line.strip()
+                                
+                                if line:
+                                    try:
+                                        data = json.loads(line)
+                                        message = data.get('message', {})
+                                        content = message.get('content', '')
+                                        thinking = message.get('thinking', '')
+                                        done = data.get('done', False)
+                                        
+                                        # 处理推理内容
+                                        if thinking:
+                                            if not is_thinking:
+                                                yield '<think>'
+                                                is_thinking = True
+                                            yield thinking
+                                        
+                                        # 处理正常内容
+                                        if content:
+                                            if is_thinking:
+                                                yield '</think>'
+                                                is_thinking = False
+                                            yield content
+                                        
+                                        if done:
+                                            if is_thinking:
+                                                yield '</think>'
+                                            return
+                                            
+                                    except json.JSONDecodeError:
+                                        continue
+                                        
+            except Exception as e:
+                # 如果流式请求失败，回退到普通请求并模拟流式输出
+                try:
+                    print(f"Ollama流式请求失败，回退到普通请求: {str(e)}")
+                    payload['stream'] = False
+                    normal_result = await self._make_request_ollama(url, payload)
+                    content = normal_result['message']['content']
+                    
+                    # 模拟流式输出，逐字符输出
+                    import asyncio
+                    for char in content:
+                        yield char
+                        await asyncio.sleep(0.02)  # 模拟延迟
+                        
+                except Exception as fallback_error:
+                    yield f"[ERROR] 所有请求都失败: {str(fallback_error)}"
+        
+        return stream_generator()
+    
+    def _convert_messages(self, messages: List[Dict]) -> List[Dict]:
+        """转换消息格式为Ollama格式"""
+        converted = []
+        for msg in messages:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            converted.append({
+                'role': role,
+                'content': content
+            })
+        return converted
     
     async def _make_request_ollama(self, url: str, payload: Dict):
         """发起Ollama专用请求"""
