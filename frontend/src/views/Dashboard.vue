@@ -7,7 +7,7 @@
     
     <!-- 功能卡片 -->
     <div class="feature-cards">
-      <el-card class="feature-card" @click="$router.push('/chat')">
+      <el-card class="feature-card" @click="$router.push('/dashboard/chat')">
         <div class="card-icon">
           <el-icon size="56" color="#64a8db"><ChatDotRound /></el-icon>
         </div>
@@ -15,7 +15,7 @@
         <p>与AI模型进行智能对话，支持多模型切换</p>
       </el-card>
       
-      <el-card class="feature-card" @click="$router.push('/test')">
+      <el-card class="feature-card" @click="$router.push('/dashboard/model-test')">
         <div class="card-icon">
           <el-icon size="56" color="#7bb3f0"><Monitor /></el-icon>
         </div>
@@ -23,7 +23,7 @@
         <p>对比测试多个模型，评估模型性能</p>
       </el-card>
       
-      <el-card class="feature-card" @click="$router.push('/training')">
+      <el-card class="feature-card" @click="$router.push('/dashboard/training')">
         <div class="card-icon">
           <el-icon size="56" color="#8bc5f5"><Monitor /></el-icon>
         </div>
@@ -31,7 +31,7 @@
         <p>基于LlamaFactory的模型微调训练</p>
       </el-card>
       
-      <el-card class="feature-card" @click="$router.push('/swanlab')">
+      <el-card class="feature-card" @click="$router.push('/dashboard/training-viz')">
         <div class="card-icon">
           <el-icon size="56" color="#9ed7fa"><TrendCharts /></el-icon>
         </div>
