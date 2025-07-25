@@ -151,11 +151,11 @@
       @close="handleCloseModelDialog"
       class="model-dialog"
     >
-      <el-form 
+              <el-form 
         :model="modelConfigForm" 
         :rules="formRules" 
         ref="modelFormRef" 
-        label-width="100px"
+        label-position="top"
         class="model-form"
       >
         <!-- 提供商选择 -->
@@ -854,12 +854,22 @@ export default {
   padding: 0;
 }
 
+.model-form :deep(.el-form-item) {
+  margin-bottom: 24px !important;
+}
+
 .model-form :deep(.el-form-item__label) {
   font-weight: 600 !important;
   color: var(--text-color) !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 0 !important;
+  line-height: 1.2 !important;
 }
 
-/* 表单特定样式 */
+.model-form :deep(.el-form-item__content) {
+  width: 100% !important;
+}
+
 .model-form :deep(.el-input__wrapper) {
   border-radius: 10px !important;
 }
@@ -899,6 +909,7 @@ export default {
   align-items: center;
   gap: 16px;
   width: 100%;
+  margin-top: 4px;
 }
 
 .slider-value {
@@ -907,10 +918,11 @@ export default {
   font-weight: 600;
   color: var(--primary-blue);
   background: var(--light-blue);
-  padding: 6px 16px;
-  border-radius: 10px;
-  border: 2px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
   font-size: 14px;
+  flex-shrink: 0;
 }
 
 .dialog-footer {

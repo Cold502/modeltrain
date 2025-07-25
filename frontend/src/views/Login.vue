@@ -121,7 +121,7 @@ export default {
         // 等待一下确保状态更新完成
         setTimeout(() => {
           console.log('🚀 准备跳转到dashboard')
-          router.push('/dashboard')
+        router.push('/dashboard')
         }, 100)
         
       } catch (error) {

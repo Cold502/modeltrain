@@ -211,3 +211,136 @@ URL构建详情:
   是否以/v1结尾: True
   最终URL: 'http://192.168.2.200:9000/v1/models'
 fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-06-30 09:29:11.102587 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+
+=== 刷新模型请求 2025-06-30 12:42:24.421527 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-06-30 13:34:56.578722 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-07-01 13:53:21.854641 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-07-01 14:38:45.453831 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-07-01 14:38:48.941181 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-07-01 17:12:07.202233 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-07-14 18:17:23.985858 ===
+endpoint: 'http://192.168.2.151/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 24
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.151/api', provider_id='ollama'
+连接错误详情:
+  错误类型: ConnectError
+  错误信息: All connection attempts failed
+  尝试连接的URL: http://192.168.2.151/api/tags

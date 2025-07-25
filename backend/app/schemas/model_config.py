@@ -31,6 +31,8 @@ class ModelConfigBase(BaseModel):
     type: str = "text"
     temperature: float = Field(0.7, ge=0.0, le=1.0, description="Temperature must be between 0.0 and 1.0")
     max_tokens: int = Field(8192, alias="maxTokens", ge=1, le=32768)
+    top_p: float = Field(0.9, alias="topP", ge=0.0, le=1.0)
+    top_k: float = Field(0.0, alias="topK", ge=0.0)
     status: int = 1
 
     class Config:
@@ -58,6 +60,8 @@ class ModelConfigResponse(BaseModel):
     type: str
     temperature: float
     max_tokens: int = Field(alias="maxTokens")
+    top_p: float = Field(alias="topP")
+    top_k: float = Field(alias="topK")
     status: int
     created_at: datetime = Field(alias="createdAt")
     updated_at: Optional[datetime] = Field(alias="updatedAt")
@@ -94,13 +98,13 @@ class ModelPlaygroundChat(ModelPlaygroundChatBase):
         from_attributes = True
 
 class PlaygroundMessageRequest(BaseModel):
-    model_id: str
+    model_config_id: str
     messages: List[dict]
     temperature: float = 0.7
     max_tokens: int = 8192
 
 class PlaygroundStreamRequest(BaseModel):
-    model_id: str
+    model_config_id: str
     messages: List[dict] 
     temperature: float = 0.7
     max_tokens: int = 8192

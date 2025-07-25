@@ -28,7 +28,8 @@ api.interceptors.request.use(
       }
     }
     const token = localStorage.getItem('token')
-    if (token) {
+    // 只在token存在且不为空时才添加Authorization头
+    if (token && token.trim() !== '' && token !== 'null' && token !== 'undefined') {
       config.headers.Authorization = `Bearer ${token}`
     }
     return config

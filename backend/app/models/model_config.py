@@ -33,6 +33,8 @@ class ModelConfig(Base):
     type = Column(String(50), default="text")  # text, vision
     temperature = Column(Float, default=0.7)
     max_tokens = Column(Integer, default=8192)
+    top_p = Column(Float, default=0.9)
+    top_k = Column(Float, default=0.0)
     status = Column(Integer, default=1)  # 1: 启用, 0: 禁用
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

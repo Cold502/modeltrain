@@ -10,7 +10,7 @@ class ChatSession(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String(255), default="新对话")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # 关联关系
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
@@ -35,7 +35,11 @@ class SystemPrompt(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
+    description = Column(Text)  # 添加描述字段
+    format_type = Column(String(50), default="openai")  # openai, ollama, custom
+    category = Column(String(100), default="general")  # general, coding, translation, creative, etc.
     is_default = Column(Boolean, default=False)
+    is_system = Column(Boolean, default=False)  # 系统预定义提示词
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now()) 
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()) 

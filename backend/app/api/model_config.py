@@ -97,7 +97,7 @@ DEFAULT_PROVIDERS = [
 
 # 默认模型配置列表（按优先级排序：vLLM第一、Ollama第二、DeepSeek第三）
 DEFAULT_MODEL_CONFIGS = [
-    # 1. VLLM (最优先显示)
+    # 1. VLLM (预设模板，默认禁用)
     {
         "provider_id": "vllm",
         "provider_name": "VLLM",
@@ -108,7 +108,7 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 1
+        "status": 0  # 预设模板，默认禁用
     },
     {
         "provider_id": "vllm",
@@ -120,9 +120,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 1
+        "status": 0  # 预设模板，默认禁用
     },
-    # 2. Ollama (第二优先)
+    # 2. Ollama (预设模板，默认禁用)
     {
         "provider_id": "ollama",
         "provider_name": "Ollama",
@@ -133,7 +133,7 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 1
+        "status": 0  # 预设模板，默认禁用
     },
     {
         "provider_id": "ollama",
@@ -145,9 +145,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 1
+        "status": 0  # 预设模板，默认禁用
     },
-    # 3. DeepSeek (第三优先)
+    # 3. DeepSeek (默认禁用，需要API key)
     {
         "provider_id": "deepseek",
         "provider_name": "DeepSeek",
@@ -158,9 +158,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 4. OpenAI
+    # 4. OpenAI (默认禁用，需要API key)
     {
         "provider_id": "openai",
         "provider_name": "OpenAI",
@@ -171,7 +171,7 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
     {
         "provider_id": "openai",
@@ -183,9 +183,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 5. Claude
+    # 5. Claude (默认禁用，需要API key)
     {
         "provider_id": "claude",
         "provider_name": "Claude",
@@ -196,9 +196,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 6. 通义千问
+    # 6. 通义千问 (默认禁用，需要API key)
     {
         "provider_id": "tongyi",
         "provider_name": "通义千问",
@@ -209,9 +209,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 7. 豆包
+    # 7. 豆包 (默认禁用，需要API key)
     {
         "provider_id": "doubao",
         "provider_name": "豆包",
@@ -222,9 +222,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 8. Kimi
+    # 8. Kimi (默认禁用，需要API key)
     {
         "provider_id": "kimi",
         "provider_name": "Kimi",
@@ -235,9 +235,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 9. 智谱清言
+    # 9. 智谱清言 (默认禁用，需要API key)
     {
         "provider_id": "zhipu",
         "provider_name": "智谱清言",
@@ -248,9 +248,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 10. ChatGLM
+    # 10. ChatGLM (默认禁用，需要API key)
     {
         "provider_id": "chatglm",
         "provider_name": "ChatGLM",
@@ -261,9 +261,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 11. Google Gemini
+    # 11. Google Gemini (默认禁用，需要API key)
     {
         "provider_id": "gemini",
         "provider_name": "Google Gemini",
@@ -274,9 +274,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 12. 文心一言
+    # 12. 文心一言 (默认禁用，需要API key)
     {
         "provider_id": "wenxin",
         "provider_name": "文心一言",
@@ -287,9 +287,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 13. 腾讯混元
+    # 13. 腾讯混元 (默认禁用，需要API key)
     {
         "provider_id": "hunyuan",
         "provider_name": "腾讯混元",
@@ -300,9 +300,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 14. 零一万物 Yi
+    # 14. 零一万物 Yi (默认禁用，需要API key)
     {
         "provider_id": "yi",
         "provider_name": "零一万物",
@@ -313,9 +313,9 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     },
-    # 15. 硅基流动
+    # 15. 硅基流动 (默认禁用，需要API key)
     {
         "provider_id": "siliconflow",
         "provider_name": "硅基流动",
@@ -326,7 +326,7 @@ DEFAULT_MODEL_CONFIGS = [
         "type": "chat",
         "temperature": 0.7,
         "max_tokens": 4096,
-        "status": 0
+        "status": 0  # 需要API key，默认禁用
     }
 ]
 
@@ -353,11 +353,19 @@ async def init_default_model_configs(db: Session):
                 # vLLM在数组最前面，所以时间最晚，在倒序排列时显示在最上面
                 created_time = base_time + timedelta(milliseconds=i * 10)
                 
-                db_config = ModelConfigModel(
-                    id=str(uuid.uuid4()),
-                    created_at=created_time,
-                    **config_data
-                )
+                # 确保所有必需字段都被正确设置
+                config_dict = config_data.copy()
+                config_dict['user_id'] = 1  # 默认用户ID
+                config_dict['id'] = str(uuid.uuid4())
+                config_dict['created_at'] = created_time
+                
+                # 确保有top_p和top_k字段
+                if 'top_p' not in config_dict:
+                    config_dict['top_p'] = 0.9
+                if 'top_k' not in config_dict:
+                    config_dict['top_k'] = 0.0
+                
+                db_config = ModelConfigModel(**config_dict)
                 db.add(db_config)
         
         db.commit()
@@ -371,6 +379,8 @@ async def get_providers(db: Session = Depends(get_db)):
     """获取模型提供商列表"""
     try:
         from datetime import datetime
+        from app.llm_core.llm_client import provider_requires_api_key
+        
         # 直接返回默认提供商列表，避免数据库关系问题
         current_time = datetime.now()
         return [
@@ -379,7 +389,8 @@ async def get_providers(db: Session = Depends(get_db)):
                 "name": provider["name"],
                 "api_url": provider["api_url"],
                 "created_at": current_time,
-                "updated_at": current_time
+                "updated_at": current_time,
+                "requires_api_key": provider_requires_api_key(provider["id"])
             }
             for provider in DEFAULT_PROVIDERS
         ]
@@ -416,7 +427,7 @@ async def create_model_config(
         # 创建新的模型配置
         import uuid
         db_config = ModelConfigModel(
-            id=str(uuid.uuid4()),
+        id=str(uuid.uuid4()),
             user_id=1,  # 默认用户ID
             provider_id=config.provider_id,
             provider_name=config.provider_name,
