@@ -190,8 +190,15 @@ export const trainingAPI = {
   stopTraining: (taskId) => api.post(`/training/tasks/${taskId}/stop`),
   getTrainingLogs: (taskId) => api.get(`/training/tasks/${taskId}/logs`),
   
-  // SwanLab
-  getSwanLabInfo: () => api.get('/training/swanlab')
+  // SwanLab 管理
+  getSwanLabInfo: () => api.get('/training/swanlab'),
+  startSwanLab: (config) => api.post('/training/swanlab/start', config),
+  stopSwanLab: () => api.post('/training/swanlab/stop'),
+  saveSwanLabConfig: (config) => api.post('/training/swanlab/config', config),
+  testSwanLabConnection: (config) => api.post('/training/swanlab/test', config),
+  createSwanLabProject: (project) => api.post('/training/swanlab/projects', project),
+  deleteSwanLabProject: (projectName) => api.delete(`/training/swanlab/projects/${projectName}`),
+  getSwanLabProjects: () => api.get('/training/swanlab/projects')
 }
 
 export const adminAPI = {

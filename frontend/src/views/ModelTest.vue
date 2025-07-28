@@ -13,7 +13,7 @@
           <el-option
             v-for="config in availableConfigs"
             :key="config.id"
-            :label="`${config.provider_name}: ${config.model_name}`"
+            :label="`${config.providerName}: ${config.modelName}`"
             :value="config.id"
             :disabled="selectedModels.length >= 3 && !selectedModels.includes(config.id)"
           />
@@ -150,8 +150,8 @@
           v-model="userInput"
           type="textarea"
           :rows="3"
-          placeholder="输入消息..."
-          @keydown.ctrl.enter="sendMessage"
+          placeholder="输入消息... (Enter发送，Shift+Enter换行)"
+          @keydown.enter="handleEnter"
           :disabled="isLoading"
         />
         
@@ -235,10 +235,11 @@ export default {
       try {
         const response = await api.get('/model-config/')
         availableConfigs.value = response.data.filter(config => 
-          config.model_name && 
-          config.endpoint && 
+          config.modelName &&
+          config.endpoint &&
           config.status === 1  // 只显示启用的配置
         )
+        console.log(response.data)
       } catch (error) {
         message.error('获取模型配置失败')
       }
@@ -247,7 +248,7 @@ export default {
     // 获取模型名称
     const getModelName = (modelId) => {
       const config = availableConfigs.value.find(c => c.id === modelId)
-      return config ? `${config.provider_name}: ${config.model_name}` : modelId
+      return config ? `${config.providerName}: ${config.modelName}` : modelId
     }
 
     // 图片上传前处理
@@ -410,48 +411,68 @@ export default {
       }
 
       const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-
-      let isInThinking = false
-      let currentThinking = ''
+      const decoder = new TextDecoder('utf-8')
+      let buffer = ''
       let currentContent = ''
+      let currentThinking = ''
+      let isDone = false
 
-      while (true) {
+      while (!isDone) {
         const { done, value } = await reader.read()
         if (done) break
 
         const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
 
-        // 处理思维链标签
-        for (let i = 0; i < chunk.length; i++) {
-          const char = chunk[i]
+        // 处理完整的行
+        while (buffer.includes('\n')) {
+          const lineEndIndex = buffer.indexOf('\n')
+          const line = buffer.slice(0, lineEndIndex).trim()
+          buffer = buffer.slice(lineEndIndex + 1)
 
-          if (i + 6 <= chunk.length && chunk.substring(i, i + 7) === '<think>') {
-            isInThinking = true
-            i += 6
-            continue
-          }
+          if (!line) continue
 
-          if (i + 7 <= chunk.length && chunk.substring(i, i + 8) === '</think>') {
-            isInThinking = false
-            i += 7
-            continue
-          }
+          // 处理SSE格式的数据
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6) // 移除 'data: ' 前缀
 
-          if (isInThinking) {
-            currentThinking += char
-          } else {
-            currentContent += char
+            // 检查特殊标记
+            if (data === '[DONE]') {
+              isDone = true
+              break
+            }
+
+            if (data.startsWith('[ERROR]')) {
+              const errorMsg = data.slice(7)
+              throw new Error(errorMsg)
+            }
+
+            // 处理内容
+            if (data) {
+              // 检查是否包含思维链标签
+              if (data.includes('<think>') && data.includes('</think>')) {
+                const thinkMatch = data.match(/<think>(.*?)<\/think>/s)
+                if (thinkMatch) {
+                  currentThinking += thinkMatch[1]
+                  const contentPart = data.replace(/<think>.*?<\/think>/s, '')
+                  currentContent += contentPart
+                } else {
+                  currentContent += data
+                }
+              } else {
+                currentContent += data
+              }
+
+              // 更新对话内容
+              const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+              lastMessage.content = currentContent
+              lastMessage.thinking = currentThinking
+              lastMessage.showThinking = currentThinking.length > 0
+
+              scrollToBottom()
+            }
           }
         }
-
-        // 更新对话内容
-        const lastMessage = conversations[modelId][conversations[modelId].length - 1]
-        lastMessage.content = currentContent
-        lastMessage.thinking = currentThinking
-        lastMessage.showThinking = currentThinking.length > 0
-
-        scrollToBottom()
       }
 
       // 完成流式传输
@@ -470,6 +491,14 @@ export default {
     const formatMessage = (content) => {
       if (!content) return ''
       return content.replace(/\n/g, '<br>')
+    }
+
+    // 处理回车键
+    const handleEnter = (e) => {
+      if (!e.shiftKey && !isLoading.value) {
+        e.preventDefault()
+        sendMessage()
+      }
     }
 
     // 滚动到底部
@@ -505,7 +534,8 @@ export default {
       removeImage,
       sendMessage,
       clearAllConversations,
-      formatMessage
+      formatMessage,
+      handleEnter
     }
   }
 }

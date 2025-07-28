@@ -344,3 +344,54 @@ fetch_models_from_api 函数开始执行
   错误类型: ConnectError
   错误信息: All connection attempts failed
   尝试连接的URL: http://192.168.2.151/api/tags
+
+=== 刷新模型请求 2025-07-25 10:31:39.151288 ===
+endpoint: 'http://192.168.2.200:9000/v1/'
+provider_id: 'vllm'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.200:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.200:9000/v1/'
+  清理后endpoint: 'http://192.168.2.200:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.200:9000/v1/models'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-07-25 14:43:33.733425 ===
+endpoint: 'https://api.deepseek.com/v1/'
+provider_id: 'deepseek'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 28
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='https://api.deepseek.com/v1/', provider_id='deepseek'
+URL构建详情:
+  原始endpoint: 'https://api.deepseek.com/v1/'
+  清理后endpoint: 'https://api.deepseek.com/v1'
+  是否以/v1结尾: True
+  最终URL: 'https://api.deepseek.com/v1/models'
+fetch_models_from_api 返回了 2 个模型
+
+=== 刷新模型请求 2025-07-26 09:34:21.275226 ===
+endpoint: 'https://api.deepseek.com/v1/'
+provider_id: 'deepseek'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 28
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='https://api.deepseek.com/v1/', provider_id='deepseek'
+URL构建详情:
+  原始endpoint: 'https://api.deepseek.com/v1/'
+  清理后endpoint: 'https://api.deepseek.com/v1'
+  是否以/v1结尾: True
+  最终URL: 'https://api.deepseek.com/v1/models'
+fetch_models_from_api 返回了 2 个模型
