@@ -111,6 +111,18 @@ export default {
         const response = await authAPI.login(loginData)
         console.log('✅ 登录响应:', response.data)
         
+        // 保存token到localStorage
+        if (response.data.access_token) {
+          localStorage.setItem('token', response.data.access_token)
+          console.log('🔑 Token已保存')
+        }
+        
+        // 保存refresh token到localStorage
+        if (response.data.refresh_token) {
+          localStorage.setItem('refresh_token', response.data.refresh_token)
+          console.log('🔄 Refresh Token已保存')
+        }
+        
         // 保存用户信息到store
         await store.dispatch('login', response.data.user)
         console.log('💾 用户信息已保存到store:', store.state.user)
@@ -121,7 +133,9 @@ export default {
         // 等待一下确保状态更新完成
         setTimeout(() => {
           console.log('🚀 准备跳转到dashboard')
-        router.push('/dashboard')
+          console.log('🔍 最终登录状态:', store.state.isLoggedIn)
+          console.log('🔍 最终用户信息:', store.state.user)
+          router.push('/dashboard')
         }, 100)
         
       } catch (error) {

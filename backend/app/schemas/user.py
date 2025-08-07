@@ -37,7 +37,9 @@ class UserUpdate(BaseModel):
     is_admin: Optional[bool] = None
     is_active: Optional[bool] = None
 
-# 登录响应
+# 登录响应 - 包含用户信息和临时通行证
 class LoginResponse(BaseModel):
     user: UserResponse
-    message: str 
+    message: str
+    access_token: str  # 用户登录后获得的临时通行证
+    refresh_token: str  # 用户登录后获得的刷新通行证 

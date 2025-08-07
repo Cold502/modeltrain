@@ -74,13 +74,48 @@ export default createStore({
     logout({ commit }) {
       commit('LOGOUT')
       localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      localStorage.removeItem('refresh_token')
     },
     
-    loadUserFromStorage({ commit }) {
+    async loadUserFromStorage({ commit, dispatch }) {
       const userStr = localStorage.getItem('user')
-      if (userStr && userStr !== 'undefined') {
-        const user = JSON.parse(userStr)
-        commit('SET_USER', user)
+      const token = localStorage.getItem('token')
+      const refreshToken = localStorage.getItem('refresh_token')
+      
+      if (userStr && userStr !== 'undefined' && token && token !== 'undefined') {
+        try {
+          // 验证token是否有效
+          const { authAPI } = await import('../utils/api')
+          const response = await authAPI.getCurrentUser()
+          const user = response.data
+          commit('SET_USER', user)
+        } catch (error) {
+          console.error('Token验证失败:', error)
+          // 如果有refresh token，尝试刷新
+          if (refreshToken && refreshToken !== 'undefined') {
+            try {
+              console.log('🔄 尝试使用refresh token刷新...')
+              const { authAPI } = await import('../utils/api')
+              const refreshResponse = await authAPI.refreshToken(refreshToken)
+              const newToken = refreshResponse.data.access_token
+              localStorage.setItem('token', newToken)
+              
+              // 重新获取用户信息
+              const userResponse = await authAPI.getCurrentUser()
+              const user = userResponse.data
+              commit('SET_USER', user)
+              console.log('✅ Token刷新成功')
+            } catch (refreshError) {
+              console.error('Refresh token也无效:', refreshError)
+              // 如果refresh token也无效，清除本地存储
+              dispatch('logout')
+            }
+          } else {
+            // 如果token无效，清除本地存储
+            dispatch('logout')
+          }
+        }
       }
       
       const darkMode = localStorage.getItem('darkMode') === 'true'

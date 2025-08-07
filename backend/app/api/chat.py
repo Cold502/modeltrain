@@ -18,6 +18,7 @@ from app.schemas.chat import (
 from app.services.prompt_service import PromptService
 from app.llm_core.llm_client import LLMClient
 from app.models.model_config import ModelConfig as ModelConfigModel
+from app.utils.auth import get_current_user
 import uuid
 
 router = APIRouter()
@@ -34,11 +35,11 @@ def get_db():
 async def create_session(
     session_data: ChatSessionCreate,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """创建新的聊天会话"""
     session = ChatSession(
-        user_id=user_id,
+        user_id=current_user.id,
         title=session_data.title
     )
     db.add(session)
@@ -49,26 +50,33 @@ async def create_session(
 @router.get("/sessions", response_model=List[ChatSessionResponse])
 async def get_user_sessions(
     db: Session = Depends(get_db),
-    user_id: int = 1,
+    current_user: User = Depends(get_current_user),
     limit: int = 20,
     offset: int = 0
 ):
     """获取用户的聊天会话列表"""
-    sessions = db.query(ChatSession).filter(
-        ChatSession.user_id == user_id
-    ).order_by(ChatSession.updated_at.desc()).offset(offset).limit(limit).all()
-    return sessions
+    try:
+        sessions = db.query(ChatSession).filter(
+            ChatSession.user_id == current_user.id
+        ).order_by(ChatSession.updated_at.desc()).offset(offset).limit(limit).all()
+        return sessions
+    except Exception as e:
+        print(f"获取会话列表时出现错误: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取会话列表失败"
+        )
 
 @router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
 async def get_session(
     session_id: int,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """获取特定聊天会话及其消息"""
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
-        ChatSession.user_id == user_id
+        ChatSession.user_id == current_user.id
     ).first()
     
     if not session:
@@ -90,12 +98,12 @@ async def update_session(
     session_id: int,
     session_data: ChatSessionUpdate,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """更新聊天会话"""
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
-        ChatSession.user_id == user_id
+        ChatSession.user_id == current_user.id
     ).first()
     
     if not session:
@@ -115,12 +123,12 @@ async def update_session(
 async def delete_session(
     session_id: int,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """删除聊天会话"""
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
-        ChatSession.user_id == user_id
+        ChatSession.user_id == current_user.id
     ).first()
     
     if not session:
@@ -138,16 +146,16 @@ async def delete_session(
 async def send_message(
     message_data: ChatMessageCreate,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """发送聊天消息"""
     print(f"🔍 收到消息保存请求: {message_data}")
-    print(f"🔍 用户ID: {user_id}")
+    print(f"🔍 用户ID: {current_user.id}")
     
     # 如果没有指定会话，创建新会话
     if not message_data.session_id:
         print("🔍 创建新会话...")
-        session = ChatSession(user_id=user_id, title="新对话")
+        session = ChatSession(user_id=current_user.id, title="新对话")
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -159,7 +167,7 @@ async def send_message(
         # 验证会话属于当前用户
         session = db.query(ChatSession).filter(
             ChatSession.id == session_id,
-            ChatSession.user_id == user_id
+            ChatSession.user_id == current_user.id
         ).first()
         if not session:
             print(f"🔍 会话不存在或权限不足")
@@ -188,12 +196,12 @@ async def send_message(
 async def export_session(
     session_id: int,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """导出聊天会话为txt文件"""
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
-        ChatSession.user_id == user_id
+        ChatSession.user_id == current_user.id
     ).first()
     
     if not session:
@@ -459,7 +467,7 @@ async def validate_prompt(
 async def model_chat(
     request: dict,  # {"model_config_id": str, "messages": List[dict]}
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """模型聊天（普通模式）"""
     model_config_id = request.get("model_config_id")
@@ -509,7 +517,7 @@ async def model_chat(
 async def model_chat_stream(
     request: dict,  # {"model_config_id": str, "messages": List[dict]}
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """模型聊天（流式模式）"""
     model_config_id = request.get("model_config_id")

@@ -20,6 +20,6 @@ app.use(router)
 app.use(ElementPlus)
 
 // 从localStorage加载用户状态
-store.dispatch('loadUserFromStorage')
-
-app.mount('#app') 
+store.dispatch('loadUserFromStorage').then(() => {
+  app.mount('#app')
+}) 

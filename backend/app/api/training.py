@@ -1,3 +1,5 @@
+import sys
+
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
@@ -7,13 +9,15 @@ import asyncio
 import subprocess
 from datetime import datetime
 
-from app.database import SessionLocal
-from app.models.training import Dataset, TrainingConfig, TrainingTask
-from app.schemas.training import (
+from ..database import SessionLocal
+from ..models.training import Dataset, TrainingConfig, TrainingTask
+from ..schemas.training import (
     DatasetCreate, DatasetResponse,
     TrainingConfigCreate, TrainingConfigResponse,
     TrainingTaskCreate, TrainingTaskResponse
 )
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -33,8 +37,8 @@ async def upload_dataset(
     file: UploadFile = File(...),
     name: str = None,
     description: str = None,
-    user_id: int = 1,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """上传训练数据集"""
     allowed_formats = ['.json', '.jsonl', '.csv', '.txt']
@@ -65,7 +69,7 @@ async def upload_dataset(
         file_path=file_path,
         file_size=file_size,
         format_type=file_extension[1:],
-        uploaded_by=user_id
+        uploaded_by=current_user.id
     )
     
     db.add(dataset)
@@ -83,8 +87,8 @@ async def get_datasets(db: Session = Depends(get_db)):
 @router.post("/tasks", response_model=TrainingTaskResponse)
 async def create_training_task(
     task_data: TrainingTaskCreate,
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """创建训练任务"""
     dataset = db.query(Dataset).filter(Dataset.id == task_data.dataset_id).first()
@@ -103,7 +107,7 @@ async def create_training_task(
         dataset_id=task_data.dataset_id,
         config_id=task_data.config_id,
         output_dir=output_dir,
-        created_by=user_id
+        created_by=current_user.id
     )
     
     db.add(task)
@@ -114,20 +118,20 @@ async def create_training_task(
 
 @router.get("/tasks", response_model=List[TrainingTaskResponse])
 async def get_training_tasks(
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """获取训练任务列表"""
     tasks = db.query(TrainingTask).filter(
-        TrainingTask.created_by == user_id
+        TrainingTask.created_by == current_user.id
     ).order_by(TrainingTask.created_at.desc()).all()
     return tasks
 
 @router.post("/tasks/{task_id}/start")
 async def start_training(
     task_id: int,
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """启动训练任务"""
     task = db.query(TrainingTask).filter(

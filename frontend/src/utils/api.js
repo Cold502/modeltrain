@@ -13,20 +13,55 @@ const api = axios.create({
   }
 })
 
+// 是否正在刷新token
+let isRefreshing = false
+// 等待刷新token的请求队列
+let failedQueue = []
+
+// 处理队列中的请求
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+  
+  failedQueue = []
+}
+
+// 刷新token的函数
+const refreshToken = async () => {
+  try {
+    const refresh_token = localStorage.getItem('refresh_token')
+    if (!refresh_token) {
+      throw new Error('No refresh token')
+    }
+    
+    const response = await axios.post(
+      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'}/auth/refresh`,
+      { refresh_token }
+    )
+    
+    const { access_token } = response.data
+    localStorage.setItem('token', access_token)
+    return access_token
+  } catch (error) {
+    console.error('Token刷新失败:', error)
+    // 清除所有token
+    localStorage.removeItem('token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user')
+    store.dispatch('logout')
+    router.push('/login')
+    throw error
+  }
+}
+
 // 请求拦截器
 api.interceptors.request.use(
   config => {
-    const user = store.state.user
-    if (user && user.id) {
-      // 添加用户ID到请求参数中（简化版认证）
-      // 对于admin和config API，所有请求都使用查询参数
-      if (config.url.includes('/admin/') || config.url.includes('/config/') || 
-          config.method === 'get' || config.method === 'delete') {
-        config.params = { ...config.params, user_id: user.id }
-      } else {
-        config.data = { ...config.data, user_id: user.id }
-      }
-    }
     const token = localStorage.getItem('token')
     // 只在token存在且不为空时才添加Authorization头
     if (token && token.trim() !== '' && token !== 'null' && token !== 'undefined') {
@@ -45,10 +80,42 @@ api.interceptors.response.use(
   response => {
     return response
   },
-  error => {
+  async error => {
     console.error('响应错误:', error)
     
-    // 处理常见错误
+    const originalRequest = error.config
+    
+    // 如果是401错误且不是刷新token的请求
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // 如果正在刷新token，将请求加入队列
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`
+          return api(originalRequest)
+        }).catch(err => {
+          return Promise.reject(err)
+        })
+      }
+      
+      originalRequest._retry = true
+      isRefreshing = true
+      
+      try {
+        const newToken = await refreshToken()
+        processQueue(null, newToken)
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        return api(originalRequest)
+      } catch (refreshError) {
+        processQueue(refreshError, null)
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
+    }
+    
+    // 处理其他错误
     if (error.response) {
       const { status, data } = error.response
       
@@ -58,10 +125,14 @@ api.interceptors.response.use(
           if (router.currentRoute.value.name === 'Login') {
             message.error(data.detail || '登录认证失败');
           } else {
-            // 如果是其他页面的401，说明是token失效，需要重新登录
-            message.error('认证已过期，请重新登录');
+            // 如果是其他页面的401，说明是token失效，清除本地存储
+            console.log('Token无效，清除本地存储')
             store.dispatch('logout');
-            router.push('/login');
+            // 只有在非登录页面才跳转
+            if (router.currentRoute.value.name !== 'Login') {
+              message.error('认证已过期，请重新登录');
+              router.push('/login');
+            }
           }
           break
         case 403:
@@ -98,7 +169,10 @@ export const authAPI = {
   resetPassword: (resetData) => api.post('/auth/reset-password', resetData),
   
   // 获取当前用户信息
-  getCurrentUser: (userId) => api.get('/auth/me', { params: { user_id: userId } })
+  getCurrentUser: () => api.get('/auth/me'),
+  
+  // 刷新token
+  refreshToken: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken })
 }
 
 export const chatAPI = {

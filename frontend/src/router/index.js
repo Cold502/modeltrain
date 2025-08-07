@@ -96,7 +96,9 @@ router.beforeEach((to, from, next) => {
 
     // 检查localStorage中的用户状态
     const userStr = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
     console.log('📱 localStorage中的用户信息:', userStr)
+    console.log('🔑 localStorage中的token:', token ? '存在' : '不存在')
 
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
     const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
@@ -106,38 +108,16 @@ router.beforeEach((to, from, next) => {
     console.log('认证状态:', {requiresAuth, isLoggedIn, requiresAdmin, isAdmin})
     console.log('🏪 Store中的用户:', store.state.user)
 
-    // 如果localStorage中有用户信息但store中没有，先加载用户状态
-    if (userStr && userStr !== 'undefined' && !isLoggedIn) {
-        console.log('🔄 从localStorage恢复用户状态')
-        store.dispatch('loadUserFromStorage')
-        // 重新检查状态
-        const newIsLoggedIn = store.state.isLoggedIn
-        const newIsAdmin = store.getters.isAdmin
-        console.log('🔄 恢复后的状态:', {newIsLoggedIn, newIsAdmin})
+    // 简化逻辑：如果有token和用户信息，就认为已登录
+    const hasValidAuth = token && userStr && userStr !== 'undefined' && token !== 'undefined'
 
-        if (requiresAuth && !newIsLoggedIn) {
-            console.log('重定向到登录页面')
-            next('/login')
-        } else if (requiresAdmin && !newIsAdmin) {
-            console.log('权限不足，重定向到首页')
-            next('/dashboard')
-        } else if ((to.name === 'Login' || to.name === 'Register') && newIsLoggedIn) {
-            console.log('已登录，重定向到首页')
-            next('/dashboard')
-        } else {
-            console.log('路由守卫通过')
-            next()
-        }
-        return
-    }
-
-    if (requiresAuth && !isLoggedIn) {
-        console.log('重定向到登录页面')
+    if (requiresAuth && !hasValidAuth) {
+        console.log('重定向到登录页面 - 需要认证但没有有效认证')
         next('/login')
     } else if (requiresAdmin && !isAdmin) {
         console.log('权限不足，重定向到首页')
         next('/dashboard')
-    } else if ((to.name === 'Login' || to.name === 'Register') && isLoggedIn) {
+    } else if ((to.name === 'Login' || to.name === 'Register') && hasValidAuth) {
         console.log('已登录，重定向到首页')
         next('/dashboard')
     } else {
