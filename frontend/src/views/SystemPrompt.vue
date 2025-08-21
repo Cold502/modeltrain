@@ -38,11 +38,12 @@
             <div class="prompt-title">
               <el-tag v-if="prompt.is_default" type="success" size="small">默认</el-tag>
               <el-tag v-if="prompt.is_system" type="info" size="small">系统</el-tag>
+              <el-tag v-if="!prompt.is_system && prompt.name !== '系统通用助手'" type="warning" size="small" class="deletable-tag">可删除</el-tag>
               <span class="name">{{ prompt.name }}</span>
             </div>
             <div class="prompt-actions">
               <el-dropdown @command="handlePromptAction">
-                <el-button text :icon="MoreFilled" />
+                <el-button text :icon="MoreFilled" class="action-button" />
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item :command="{ action: 'edit', prompt }">编辑</el-dropdown-item>
@@ -50,9 +51,10 @@
                     <el-dropdown-item :command="{ action: 'convert', prompt }">格式转换</el-dropdown-item>
                     <el-dropdown-item :command="{ action: 'copy', prompt }">复制内容</el-dropdown-item>
                     <el-dropdown-item 
-                      v-if="!prompt.is_system"
+                      v-if="!prompt.is_system && prompt.name !== '系统通用助手'"
                       :command="{ action: 'delete', prompt }"
                       divided
+                      style="color: #f56c6c; background-color: #fef0f0; border-left: 3px solid #f56c6c; margin: 4px 0; border-radius: 4px;"
                     >删除</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -489,9 +491,14 @@ export default {
     const deletePrompt = async (prompt) => {
       try {
         await ElMessageBox.confirm(
-          `确定要删除提示词 "${prompt.name}" 吗？`,
+          `确定要删除提示词 "${prompt.name}" 吗？\n\n删除后将无法恢复，请谨慎操作。`,
           '确认删除',
-          { type: 'warning' }
+          { 
+            type: 'warning',
+            confirmButtonText: '确定删除',
+            cancelButtonText: '取消',
+            dangerouslyUseHTMLString: false
+          }
         )
         
         await axios.delete(`/api/chat/system-prompts/${prompt.id}`)
@@ -812,5 +819,102 @@ pre {
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+}
+
+.prompt-actions .el-button {
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.prompt-actions .el-button:hover {
+  background-color: var(--el-fill-color-light);
+  color: var(--el-color-primary) !important;
+}
+
+.prompt-actions .el-dropdown {
+  display: block;
+}
+
+/* 新增的样式 */
+.action-button {
+  color: #606266 !important;
+  font-size: 16px !important;
+  padding: 8px !important;
+  border-radius: 6px !important;
+  transition: all 0.3s ease !important;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) !important;
+  border: 1px solid #e4e7ed !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.action-button:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* 下拉菜单样式优化 */
+.prompt-actions .el-dropdown-menu {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid #e4e7ed !important;
+}
+
+.prompt-actions .el-dropdown-menu .el-dropdown-item {
+  padding: 10px 16px !important;
+  transition: all 0.2s ease !important;
+}
+
+.prompt-actions .el-dropdown-menu .el-dropdown-item:hover {
+  background-color: #f5f7fa !important;
+  color: var(--el-color-primary) !important;
+}
+
+/* 删除按钮特殊样式 */
+.prompt-actions .el-dropdown-menu .el-dropdown-item[style*="color: #f56c6c"] {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.prompt-actions .el-dropdown-menu .el-dropdown-item[style*="color: #f56c6c"]:hover {
+  background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%) !important;
+  color: #f56c6c !important;
+  transform: translateX(2px) !important;
+  box-shadow: 0 2px 8px rgba(245, 108, 108, 0.2) !important;
+}
+
+/* 可删除标签样式 */
+.deletable-tag {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%) !important;
+  color: #d63384 !important;
+  border: 1px solid #ff9a9e !important;
+  font-weight: bold !important;
+  animation: pulse 2s infinite !important;
+  box-shadow: 0 2px 4px rgba(255, 154, 158, 0.3) !important;
+}
+
+.deletable-tag:hover {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 50%, #ff8e8e 100%) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 8px rgba(255, 107, 107, 0.4) !important;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 2px 4px rgba(255, 154, 158, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 8px rgba(255, 154, 158, 0.5);
+  }
+  100% {
+    box-shadow: 0 2px 4px rgba(255, 154, 158, 0.3);
+  }
 }
 </style> 

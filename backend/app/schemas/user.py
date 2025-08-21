@@ -42,4 +42,4 @@ class LoginResponse(BaseModel):
     user: UserResponse
     message: str
     access_token: str  # 用户登录后获得的临时通行证
-    refresh_token: str  # 用户登录后获得的刷新通行证 
+    refresh_token: Optional[str] = None  # 现在通过HttpOnly Cookie存储，响应中不返回 

@@ -193,6 +193,7 @@ import {chatAPI, modelAPI, modelConfigAPI} from '../utils/api'
 import {marked} from 'marked'
 import hljs from 'highlight.js'
 import api from '../utils/api'
+import { createSSEStream } from '../utils/tokenManager'
 export default {
   name: 'ModelChat',
   components: {
@@ -504,7 +505,6 @@ export default {
     }
 
     // 处理流式响应
-   // 处理流式响应
 const handleStreamingResponse = async (requestData) => {
   console.log('🚀 开始处理流式响应请求:', requestData);
 
@@ -528,146 +528,49 @@ const handleStreamingResponse = async (requestData) => {
   console.log('⏬ 滚动到底部');
 
   try {
-    const token = localStorage.getItem('token');
-    console.log('🔑 获取到的token:', token ? '存在' : '不存在');
-
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-
-    // 只有当token存在且不为空时才添加Authorization头
-    if (token && token.trim() !== '' && token !== 'null' && token !== 'undefined') {
-      headers['Authorization'] = `Bearer ${token}`;
-      console.log('🔐 添加了Authorization头');
-    }
-
-    console.log('🌐 准备发送请求到:', `${api.defaults.baseURL}/playground/chat/stream`);
-    console.log('📋 请求头:', headers);
-    console.log('📄 请求体:', requestData);
-
-    // 使用原始的fetch API而不是axios进行流式处理
-    const response = await fetch(`${api.defaults.baseURL}/playground/chat/stream`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(requestData)
-    });
-
-    console.log('📡 收到响应，状态码:', response.status);
-    console.log('📊 响应是否OK:', response.ok);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ 服务器返回错误，状态:', response.status, '错误信息:', errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-    }
-
-    // 检查响应是否支持流式读取
-    if (!response.body) {
-      console.error('❌ 浏览器不支持流式响应读取');
-      throw new Error('浏览器不支持流式响应读取');
-    }
-
-    console.log('✅ 开始读取流式响应...');
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-    let currentContent = '';
-    let isDone = false;
-    let chunkCount = 0;
-
-    while (!isDone) {
-      try {
-        console.log('🔄 等待读取下一个数据块...');
-        const { done, value } = await reader.read();
-        chunkCount++;
-        console.log(`📦 读取到第${chunkCount}个数据块，done:`, done, 'value长度:', value?.length || 0);
-
-        if (done) {
-          console.log('✅ 数据流读取完成');
-          break;
+    // 使用新的SSE流式处理函数
+    await createSSEStream(
+      `${api.defaults.baseURL}/playground/chat/stream`,
+      requestData,
+      // onChunk回调：每次收到新内容时更新消息
+      (currentContent) => {
+        console.log('🔄 更新消息内容，长度:', currentContent.length);
+        const messageIndex = currentSession.value.messages.length - 1;
+        if (messageIndex >= 0) {
+          currentSession.value.messages[messageIndex] = {
+            ...currentSession.value.messages[messageIndex],
+            content: currentContent
+          };
+          scrollToBottom();
         }
-
-        // 解码数据
-        const chunk = decoder.decode(value, { stream: true });
-        console.log(`📄 解码第${chunkCount}个数据块:`, chunk);
-        buffer += chunk;
-        console.log('쌓 增加缓冲区，当前缓冲区长度:', buffer.length);
-
-        // 处理完整的行
-        while (buffer.includes('\n')) {
-          const lineEndIndex = buffer.indexOf('\n');
-          const line = buffer.slice(0, lineEndIndex).trim();
-          buffer = buffer.slice(lineEndIndex + 1);
-          console.log('✂️ 处理一行数据:', line);
-          console.log('💾 剩余缓冲区长度:', buffer.length);
-
-          if (!line) {
-            console.log('⚠️ 空行，跳过处理');
-            continue;
-          }
-
-          // 处理SSE格式的数据
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6); // 移除 'data: ' 前缀
-            console.log('📨 处理data行，内容:', data);
-
-            // 检查特殊标记
-            if (data === '[DONE]') {
-              console.log('🏁 收到[DONE]标记，结束流式传输');
-              isDone = true;
-              break;
-            }
-
-            if (data.startsWith('[ERROR]')) {
-              const errorMsg = data.slice(7); // 移除 '[ERROR]' 前缀
-              console.error('💥 收到错误信息:', errorMsg);
-              throw new Error(errorMsg);
-            }
-
-            // 添加内容到当前消息
-            if (data) {
-              currentContent += data;
-              console.log('➕ 累积内容，当前总长度:', currentContent.length);
-
-              // 更新消息内容（使用Vue 3的响应式更新）
-              const messageIndex = currentSession.value.messages.length - 1;
-              if (messageIndex >= 0) {
-                console.log('🔄 更新消息内容，索引:', messageIndex);
-                currentSession.value.messages[messageIndex] = {
-                  ...currentSession.value.messages[messageIndex],
-                  content: currentContent
-                };
-
-                // 滚动到底部
-                scrollToBottom();
-                console.log('⏬ 更新后滚动到底部');
-              }
-            }
-          } else {
-            console.log('⏭️ 非data行，跳过处理:', line);
-          }
-          // 忽略其他类型的SSE行 (如 event:, id:, retry: 等)
+      },
+      // onComplete回调：流式传输完成时
+      (finalContent) => {
+        console.log('✅ 流式传输完成，最终内容长度:', finalContent.length);
+        const messageIndex = currentSession.value.messages.length - 1;
+        if (messageIndex >= 0) {
+          currentSession.value.messages[messageIndex] = {
+            ...currentSession.value.messages[messageIndex],
+            content: finalContent,
+            isStreaming: false
+          };
+          scrollToBottom();
         }
-      } catch (readError) {
-        console.error('💥 读取流时出错:', readError);
-        throw readError;
+      },
+      // onError回调：发生错误时
+      (error) => {
+        console.error('💥 流式处理错误:', error);
+        const messageIndex = currentSession.value.messages.length - 1;
+        if (messageIndex >= 0) {
+          currentSession.value.messages[messageIndex] = {
+            ...currentSession.value.messages[messageIndex],
+            content: `错误: ${error.message}`,
+            isStreaming: false
+          };
+        }
+        throw error;
       }
-    }
-
-    // 完成流式传输
-    console.log('✅ 流式传输完成，准备更新消息状态');
-    const messageIndex = currentSession.value.messages.length - 1;
-    if (messageIndex >= 0) {
-      currentSession.value.messages[messageIndex] = {
-        ...currentSession.value.messages[messageIndex],
-        isStreaming: false
-      };
-      console.log('🏁 设置消息为非流式状态');
-    }
-
-    // 确保最后一次滚动
-    scrollToBottom();
-    console.log('⏬ 最后一次滚动到底部');
+    );
 
   } catch (error) {
     console.error('🔥 流式请求处理失败:', error);

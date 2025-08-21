@@ -413,6 +413,13 @@ async def delete_system_prompt(
             detail="不能删除系统预定义提示词"
         )
     
+    # 特别保护"系统通用助手"
+    if prompt.name == "系统通用助手":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不能删除系统通用助手提示词"
+        )
+    
     db.delete(prompt)
     db.commit()
     return {"message": "系统提示词已删除"} 

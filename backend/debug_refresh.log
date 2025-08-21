@@ -412,3 +412,92 @@ URL构建详情:
   是否以/v1结尾: True
   最终URL: 'http://192.168.2.200:9000/v1/models'
 fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-08-08 09:32:10.801304 ===
+endpoint: 'http://127.0.0.1:11434/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 26
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://127.0.0.1:11434/api', provider_id='ollama'
+fetch_models_from_api 返回了 0 个模型
+
+=== 刷新模型请求 2025-08-08 09:33:17.519172 ===
+endpoint: 'http://127.0.0.1:11434/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 26
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://127.0.0.1:11434/api', provider_id='ollama'
+fetch_models_from_api 返回了 0 个模型
+
+=== 刷新模型请求 2025-08-08 09:33:20.011116 ===
+endpoint: 'http://127.0.0.1:11434/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 26
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://127.0.0.1:11434/api', provider_id='ollama'
+fetch_models_from_api 返回了 0 个模型
+
+=== 刷新模型请求 2025-08-08 09:36:36.374943 ===
+endpoint: 'http://127.0.0.1:11434/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 26
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://127.0.0.1:11434/api', provider_id='ollama'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-08-08 09:39:38.253287 ===
+endpoint: 'http://127.0.0.1:11434/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 26
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://127.0.0.1:11434/api', provider_id='ollama'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-08-08 09:47:41.095398 ===
+endpoint: 'http://127.0.0.1:11434/api'
+provider_id: 'ollama'
+api_key: None
+endpoint类型: <class 'str'>
+endpoint长度: 26
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://127.0.0.1:11434/api', provider_id='ollama'
+fetch_models_from_api 返回了 1 个模型
+
+=== 刷新模型请求 2025-08-09 16:24:11.469221 ===
+endpoint: 'https://api.deepseek.com/v1/'
+provider_id: 'deepseek'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 28
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='https://api.deepseek.com/v1/', provider_id='deepseek'
+URL构建详情:
+  原始endpoint: 'https://api.deepseek.com/v1/'
+  清理后endpoint: 'https://api.deepseek.com/v1'
+  是否以/v1结尾: True
+  最终URL: 'https://api.deepseek.com/v1/models'
+fetch_models_from_api 返回了 2 个模型

@@ -5,6 +5,7 @@ from typing import List
 from app.database import SessionLocal
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdate
+from app.utils.auth import get_current_user
 
 router = APIRouter()
 
@@ -17,11 +18,11 @@ def get_db():
 
 @router.get("/users", response_model=List[UserResponse])
 async def get_all_users(
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """获取所有用户列表（管理员）"""
-    admin_user = db.query(User).filter(User.id == user_id).first()
+    admin_user = current_user
     if not admin_user or not admin_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -34,11 +35,11 @@ async def get_all_users(
 @router.delete("/users/{target_user_id}")
 async def delete_user(
     target_user_id: int,
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """删除用户（管理员）"""
-    admin_user = db.query(User).filter(User.id == user_id).first()
+    admin_user = current_user
     if not admin_user or not admin_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -72,9 +73,9 @@ async def delete_user(
 @router.put("/users/{target_user_id}/role")
 async def update_user_role(
     target_user_id: int,
-    user_id: int,
     request_body: dict = Body(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """修改用户角色（管理员）"""
     # 从请求体中获取is_admin
@@ -85,7 +86,7 @@ async def update_user_role(
             detail="缺少is_admin参数"
         )
     
-    admin_user = db.query(User).filter(User.id == user_id).first()
+    admin_user = current_user
     if not admin_user or not admin_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -106,6 +107,8 @@ async def update_user_role(
         )
     
     user.is_admin = is_admin
+    # 保持与字符串角色字段同步，便于数据库直观显示
+    user.role = "admin" if is_admin else "user"
     db.commit()
     db.refresh(user)
     
@@ -114,11 +117,11 @@ async def update_user_role(
 
 @router.get("/stats")
 async def get_admin_stats(
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """获取系统统计信息（管理员）"""
-    admin_user = db.query(User).filter(User.id == user_id).first()
+    admin_user = current_user
     if not admin_user or not admin_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

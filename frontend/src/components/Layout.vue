@@ -380,8 +380,8 @@ export default {
 }
 
 .main-content {
-  padding: 1.2rem;
   background: var(--background-blue);
+  padding: 1.2rem;
   overflow-y: auto;
 }
 </style> 

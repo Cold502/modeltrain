@@ -189,6 +189,7 @@ import { ref, reactive, computed, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Loading, Cpu, Picture, Delete, Promotion, Close } from '@element-plus/icons-vue'
 import api from '@/utils/api'
+import { createSSEStream } from '@/utils/tokenManager'
 
 export default {
   name: 'ModelTest',
@@ -394,90 +395,70 @@ export default {
         isStreaming: true
       })
 
-      const response = await fetch(`${api.defaults.baseURL}/playground/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          model_config_id: modelId,
-          messages: messages
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let buffer = ''
-      let currentContent = ''
-      let currentThinking = ''
-      let isDone = false
-
-      while (!isDone) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        buffer += chunk
-
-        // 处理完整的行
-        while (buffer.includes('\n')) {
-          const lineEndIndex = buffer.indexOf('\n')
-          const line = buffer.slice(0, lineEndIndex).trim()
-          buffer = buffer.slice(lineEndIndex + 1)
-
-          if (!line) continue
-
-          // 处理SSE格式的数据
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6) // 移除 'data: ' 前缀
-
-            // 检查特殊标记
-            if (data === '[DONE]') {
-              isDone = true
-              break
-            }
-
-            if (data.startsWith('[ERROR]')) {
-              const errorMsg = data.slice(7)
-              throw new Error(errorMsg)
-            }
-
-            // 处理内容
-            if (data) {
-              // 检查是否包含思维链标签
-              if (data.includes('<think>') && data.includes('</think>')) {
-                const thinkMatch = data.match(/<think>(.*?)<\/think>/s)
-                if (thinkMatch) {
-                  currentThinking += thinkMatch[1]
-                  const contentPart = data.replace(/<think>.*?<\/think>/s, '')
-                  currentContent += contentPart
-                } else {
-                  currentContent += data
-                }
+      try {
+        // 使用新的SSE流式处理函数
+        await createSSEStream(
+          `${api.defaults.baseURL}/playground/chat/stream`,
+          {
+            model_config_id: modelId,
+            messages: messages
+          },
+          // onChunk回调：每次收到新内容时更新消息
+          (currentContent) => {
+            const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            
+            // 检查是否包含思维链标签
+            if (currentContent.includes('<think>') && currentContent.includes('</think>')) {
+              const thinkMatch = currentContent.match(/<think>(.*?)<\/think>/s)
+              if (thinkMatch) {
+                lastMessage.thinking = thinkMatch[1]
+                lastMessage.content = currentContent.replace(/<think>.*?<\/think>/s, '')
+                lastMessage.showThinking = true
               } else {
-                currentContent += data
+                lastMessage.content = currentContent
               }
-
-              // 更新对话内容
-              const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            } else {
               lastMessage.content = currentContent
-              lastMessage.thinking = currentThinking
-              lastMessage.showThinking = currentThinking.length > 0
-
-              scrollToBottom()
             }
+            
+            scrollToBottom()
+          },
+          // onComplete回调：流式传输完成时
+          (finalContent) => {
+            const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            lastMessage.isStreaming = false
+            
+            // 最终处理思维链
+            if (finalContent.includes('<think>') && finalContent.includes('</think>')) {
+              const thinkMatch = finalContent.match(/<think>(.*?)<\/think>/s)
+              if (thinkMatch) {
+                lastMessage.thinking = thinkMatch[1]
+                lastMessage.content = finalContent.replace(/<think>.*?<\/think>/s, '')
+                lastMessage.showThinking = true
+              } else {
+                lastMessage.content = finalContent
+              }
+            } else {
+              lastMessage.content = finalContent
+            }
+            
+            scrollToBottom()
+          },
+          // onError回调：发生错误时
+          (error) => {
+            const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            lastMessage.content = `错误: ${error.message}`
+            lastMessage.isStreaming = false
+            throw error
           }
-        }
-      }
+        )
 
-      // 完成流式传输
-      const lastMessage = conversations[modelId][conversations[modelId].length - 1]
-      lastMessage.isStreaming = false
+      } catch (error) {
+        console.error('🔥 流式请求处理失败:', error)
+        // 移除错误消息
+        conversations[modelId].pop()
+        throw error
+      }
     }
 
     // 清空所有对话
