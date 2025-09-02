@@ -3,11 +3,13 @@ import { ElMessage } from 'element-plus'
 import { message } from './message'
 import store from '../store'
 import router from '../router'
+import { getAccessToken, handle401Error, getAuthHeaders } from './tokenManager'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: '/api',  // 使用相对路径，通过代理转发
   timeout: 30000,
+  withCredentials: true,  // 确保发送cookie
   headers: {
     'Content-Type': 'application/json'
   }
@@ -15,23 +17,33 @@ const api = axios.create({
 
 // 请求拦截器
 api.interceptors.request.use(
-  config => {
-    const user = store.state.user
-    if (user && user.id) {
-      // 添加用户ID到请求参数中（简化版认证）
-      // 对于admin和config API，所有请求都使用查询参数
-      if (config.url.includes('/admin/') || config.url.includes('/config/') || 
-          config.method === 'get' || config.method === 'delete') {
-        config.params = { ...config.params, user_id: user.id }
-      } else {
-        config.data = { ...config.data, user_id: user.id }
+  async config => {
+    // 确保每个请求都发送cookie
+    config.withCredentials = true
+    
+    // 对于登录和注册请求，不需要添加Authorization头
+    const isAuthRequest = config.url?.includes('/auth/login') || 
+                         config.url?.includes('/auth/register') ||
+                         config.url?.includes('/auth/refresh')
+    
+    if (!isAuthRequest) {
+      try {
+        // 使用统一的token获取方法
+        const token = await getAccessToken()
+        config.headers.Authorization = `Bearer ${token}`
+      } catch (error) {
+        console.error('获取token失败:', error)
+        // 如果是token刷新失败，不要继续请求
+        if (error.message === 'Token刷新失败，请重新登录') {
+          throw error
+        }
       }
     }
-    const token = localStorage.getItem('token')
-    // 只在token存在且不为空时才添加Authorization头
-    if (token && token.trim() !== '' && token !== 'null' && token !== 'undefined') {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+    
+    console.log('🌐 发送请求:', config.method?.toUpperCase(), config.url)
+    console.log('📋 请求头:', config.headers)
+    console.log('🍪 withCredentials:', config.withCredentials)
+    
     return config
   },
   error => {
@@ -43,12 +55,30 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
+    console.log('✅ 收到响应:', response.status, response.config.url)
     return response
   },
-  error => {
+  async error => {
     console.error('响应错误:', error)
     
-    // 处理常见错误
+    const originalRequest = error.config
+    
+    // 如果是401错误且不是刷新token的请求
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      try {
+        // 使用统一的401错误处理方法
+        const newToken = await handle401Error(originalRequest)
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        originalRequest._retry = true // 标记已重试
+        return api(originalRequest)
+      } catch (refreshError) {
+        // 如果刷新失败，直接返回错误，不要继续尝试
+        console.error('Token刷新失败，停止重试:', refreshError)
+        return Promise.reject(refreshError)
+      }
+    }
+    
+    // 处理其他错误
     if (error.response) {
       const { status, data } = error.response
       
@@ -58,10 +88,14 @@ api.interceptors.response.use(
           if (router.currentRoute.value.name === 'Login') {
             message.error(data.detail || '登录认证失败');
           } else {
-            // 如果是其他页面的401，说明是token失效，需要重新登录
-            message.error('认证已过期，请重新登录');
+            // 如果是其他页面的401，说明是token失效，清除本地存储
+            console.log('Token无效，清除本地存储')
             store.dispatch('logout');
-            router.push('/login');
+            // 只有在非登录页面才跳转
+            if (router.currentRoute.value.name !== 'Login') {
+              message.error('认证已过期，请重新登录');
+              router.push('/login');
+            }
           }
           break
         case 403:
@@ -86,19 +120,73 @@ api.interceptors.response.use(
   }
 )
 
+// 创建带认证的axios请求方法
+export async function authenticatedRequest(config) {
+  try {
+    // 使用统一的认证头生成方法
+    const authHeaders = await getAuthHeaders(config.headers)
+    
+    const requestConfig = {
+      ...config,
+      headers: authHeaders,
+      withCredentials: true
+    }
+    
+    const response = await axios(requestConfig)
+    
+    // 如果遇到401错误，尝试刷新token并重试
+    if (response.status === 401) {
+      try {
+        const newToken = await handle401Error()
+        
+        // 使用新token重试请求
+        const retryConfig = {
+          ...requestConfig,
+          headers: {
+            ...authHeaders,
+            'Authorization': `Bearer ${newToken}`
+          }
+        }
+        
+        return await axios(retryConfig)
+      } catch (refreshError) {
+        // 刷新失败，返回原始响应
+        return response
+      }
+    }
+    
+    return response
+  } catch (error) {
+    console.error('认证axios请求失败:', error)
+    throw error
+  }
+}
+
 // API方法定义
 export const authAPI = {
   // 用户注册
   register: (userData) => api.post('/auth/register', userData),
   
   // 用户登录
-  login: (loginData) => api.post('/auth/login', loginData),
+  login: (loginData) => {
+    console.log('🔐 发送登录请求:', loginData)
+    return api.post('/auth/login', loginData)
+  },
+  
+  // 用户登出
+  logout: () => api.post('/auth/logout'),
   
   // 重置密码
   resetPassword: (resetData) => api.post('/auth/reset-password', resetData),
   
   // 获取当前用户信息
-  getCurrentUser: (userId) => api.get('/auth/me', { params: { user_id: userId } })
+  getCurrentUser: () => api.get('/auth/me'),
+  
+  // 刷新token
+  refreshToken: () => {
+    console.log('🔄 发送token刷新请求')
+    return api.post('/auth/refresh')
+  }
 }
 
 export const chatAPI = {
@@ -190,8 +278,15 @@ export const trainingAPI = {
   stopTraining: (taskId) => api.post(`/training/tasks/${taskId}/stop`),
   getTrainingLogs: (taskId) => api.get(`/training/tasks/${taskId}/logs`),
   
-  // SwanLab
-  getSwanLabInfo: () => api.get('/training/swanlab')
+  // SwanLab 管理
+  getSwanLabInfo: () => api.get('/training/swanlab'),
+  startSwanLab: (config) => api.post('/training/swanlab/start', config),
+  stopSwanLab: () => api.post('/training/swanlab/stop'),
+  saveSwanLabConfig: (config) => api.post('/training/swanlab/config', config),
+  testSwanLabConnection: (config) => api.post('/training/swanlab/test', config),
+  createSwanLabProject: (project) => api.post('/training/swanlab/projects', project),
+  deleteSwanLabProject: (projectName) => api.delete(`/training/swanlab/projects/${projectName}`),
+  getSwanLabProjects: () => api.get('/training/swanlab/projects')
 }
 
 export const adminAPI = {

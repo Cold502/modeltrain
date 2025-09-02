@@ -71,16 +71,56 @@ export default createStore({
       localStorage.setItem('user', JSON.stringify(user))
     },
     
-    logout({ commit }) {
-      commit('LOGOUT')
-      localStorage.removeItem('user')
+    async logout({ commit }) {
+      try {
+        // 调用后端登出API清除cookie
+        const { authAPI } = await import('../utils/api')
+        await authAPI.logout()
+      } catch (error) {
+        console.error('登出API调用失败:', error)
+      } finally {
+        commit('LOGOUT')
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        // 注意：refresh_token存储在HttpOnly Cookie中，不需要手动清除localStorage
+        console.log('✅ 用户登出，本地存储已清除')
+      }
     },
     
-    loadUserFromStorage({ commit }) {
+    async loadUserFromStorage({ commit, dispatch }) {
       const userStr = localStorage.getItem('user')
-      if (userStr && userStr !== 'undefined') {
-        const user = JSON.parse(userStr)
-        commit('SET_USER', user)
+      const token = localStorage.getItem('token')
+      
+      if (userStr && userStr !== 'undefined' && token && token !== 'undefined') {
+        try {
+          // 验证token是否有效
+          const { authAPI } = await import('../utils/api')
+          const response = await authAPI.getCurrentUser()
+          const user = response.data
+          commit('SET_USER', user)
+          console.log('✅ 从存储中加载用户成功:', user)
+        } catch (error) {
+          console.error('❌ Token验证失败:', error)
+          // 如果token无效，清除本地存储并跳转到登录页
+          console.log('🔄 清除无效的本地存储')
+          commit('LOGOUT')
+          localStorage.removeItem('user')
+          localStorage.removeItem('token')
+          // 注意：refresh_token存储在HttpOnly Cookie中，不需要手动清除localStorage
+          
+          // 如果当前不在登录页，跳转到登录页
+          const currentRoute = window.location.pathname
+          if (currentRoute !== '/login' && currentRoute !== '/register' && currentRoute !== '/reset-password') {
+            console.log('🔄 跳转到登录页')
+            window.location.href = '/login'
+          }
+        }
+      } else {
+        console.log('📱 本地存储中没有有效的用户信息')
+        // 清除可能存在的无效数据
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        // 注意：refresh_token存储在HttpOnly Cookie中，不需要手动清除localStorage
       }
       
       const darkMode = localStorage.getItem('darkMode') === 'true'

@@ -108,8 +108,23 @@ export default {
         loading.value = true
         
         console.log('🔐 开始登录:', loginData)
+        
+        // 清除旧的认证信息
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        localStorage.removeItem('refresh_token')
+        
         const response = await authAPI.login(loginData)
         console.log('✅ 登录响应:', response.data)
+        
+        // 保存token到localStorage
+        if (response.data.access_token) {
+          localStorage.setItem('token', response.data.access_token)
+          console.log('🔑 Access Token已保存到localStorage')
+        }
+        
+        // refresh token现在存储在HttpOnly Cookie中，不需要手动保存
+        console.log('🔄 Refresh Token已通过HttpOnly Cookie保存')
         
         // 保存用户信息到store
         await store.dispatch('login', response.data.user)
@@ -121,12 +136,14 @@ export default {
         // 等待一下确保状态更新完成
         setTimeout(() => {
           console.log('🚀 准备跳转到dashboard')
-        router.push('/dashboard')
+          console.log('🔍 最终登录状态:', store.state.isLoggedIn)
+          console.log('🔍 最终用户信息:', store.state.user)
+          router.push('/dashboard')
         }, 100)
         
       } catch (error) {
+        console.error('❌ 登录失败:', error)
         // 全局拦截器会处理错误提示，这里留空或只记录日志
-        console.error('登录失败:', error);
       } finally {
         loading.value = false
       }

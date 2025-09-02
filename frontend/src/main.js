@@ -7,6 +7,7 @@ import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import './assets/styles/main.css'
 
+
 const app = createApp(App)
 
 // 注册所有Element Plus图标
@@ -19,6 +20,6 @@ app.use(router)
 app.use(ElementPlus)
 
 // 从localStorage加载用户状态
-store.dispatch('loadUserFromStorage')
-
-app.mount('#app') 
+store.dispatch('loadUserFromStorage').then(() => {
+  app.mount('#app')
+}) 

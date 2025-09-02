@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.model_config import ModelConfig as ModelConfigModel
 from app.llm_core.llm_client import LLMClient
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -11,7 +13,7 @@ router = APIRouter()
 async def playground_chat(
     request: dict,  # {"model_config_id": str, "messages": List[dict]}
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """模型测试聊天（普通模式）- 内部调用chat API"""
     # 直接使用chat API的逻辑
@@ -62,7 +64,7 @@ async def playground_chat(
 async def playground_chat_stream(
     request: dict,  # {"model_config_id": str, "messages": List[dict]}
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """模型测试聊天（流式模式）- 内部调用chat API"""
     # 直接使用chat API的逻辑

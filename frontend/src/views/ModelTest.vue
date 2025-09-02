@@ -13,7 +13,7 @@
           <el-option
             v-for="config in availableConfigs"
             :key="config.id"
-            :label="`${config.provider_name}: ${config.model_name}`"
+            :label="`${config.providerName}: ${config.modelName}`"
             :value="config.id"
             :disabled="selectedModels.length >= 3 && !selectedModels.includes(config.id)"
           />
@@ -150,8 +150,8 @@
           v-model="userInput"
           type="textarea"
           :rows="3"
-          placeholder="输入消息..."
-          @keydown.ctrl.enter="sendMessage"
+          placeholder="输入消息... (Enter发送，Shift+Enter换行)"
+          @keydown.enter="handleEnter"
           :disabled="isLoading"
         />
         
@@ -189,6 +189,7 @@ import { ref, reactive, computed, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Loading, Cpu, Picture, Delete, Promotion, Close } from '@element-plus/icons-vue'
 import api from '@/utils/api'
+import { createSSEStream } from '@/utils/tokenManager'
 
 export default {
   name: 'ModelTest',
@@ -235,10 +236,11 @@ export default {
       try {
         const response = await api.get('/model-config/')
         availableConfigs.value = response.data.filter(config => 
-          config.model_name && 
-          config.endpoint && 
+          config.modelName &&
+          config.endpoint &&
           config.status === 1  // 只显示启用的配置
         )
+        console.log(response.data)
       } catch (error) {
         message.error('获取模型配置失败')
       }
@@ -247,7 +249,7 @@ export default {
     // 获取模型名称
     const getModelName = (modelId) => {
       const config = availableConfigs.value.find(c => c.id === modelId)
-      return config ? `${config.provider_name}: ${config.model_name}` : modelId
+      return config ? `${config.providerName}: ${config.modelName}` : modelId
     }
 
     // 图片上传前处理
@@ -393,70 +395,70 @@ export default {
         isStreaming: true
       })
 
-      const response = await fetch(`${api.defaults.baseURL}/playground/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          model_config_id: modelId,
-          messages: messages
-        })
-      })
+      try {
+        // 使用新的SSE流式处理函数
+        await createSSEStream(
+          `${api.defaults.baseURL}/playground/chat/stream`,
+          {
+            model_config_id: modelId,
+            messages: messages
+          },
+          // onChunk回调：每次收到新内容时更新消息
+          (currentContent) => {
+            const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            
+            // 检查是否包含思维链标签
+            if (currentContent.includes('<think>') && currentContent.includes('</think>')) {
+              const thinkMatch = currentContent.match(/<think>(.*?)<\/think>/s)
+              if (thinkMatch) {
+                lastMessage.thinking = thinkMatch[1]
+                lastMessage.content = currentContent.replace(/<think>.*?<\/think>/s, '')
+                lastMessage.showThinking = true
+              } else {
+                lastMessage.content = currentContent
+              }
+            } else {
+              lastMessage.content = currentContent
+            }
+            
+            scrollToBottom()
+          },
+          // onComplete回调：流式传输完成时
+          (finalContent) => {
+            const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            lastMessage.isStreaming = false
+            
+            // 最终处理思维链
+            if (finalContent.includes('<think>') && finalContent.includes('</think>')) {
+              const thinkMatch = finalContent.match(/<think>(.*?)<\/think>/s)
+              if (thinkMatch) {
+                lastMessage.thinking = thinkMatch[1]
+                lastMessage.content = finalContent.replace(/<think>.*?<\/think>/s, '')
+                lastMessage.showThinking = true
+              } else {
+                lastMessage.content = finalContent
+              }
+            } else {
+              lastMessage.content = finalContent
+            }
+            
+            scrollToBottom()
+          },
+          // onError回调：发生错误时
+          (error) => {
+            const lastMessage = conversations[modelId][conversations[modelId].length - 1]
+            lastMessage.content = `错误: ${error.message}`
+            lastMessage.isStreaming = false
+            throw error
+          }
+        )
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      } catch (error) {
+        console.error('🔥 流式请求处理失败:', error)
+        // 移除错误消息
+        conversations[modelId].pop()
+        throw error
       }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-
-      let isInThinking = false
-      let currentThinking = ''
-      let currentContent = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-
-        // 处理思维链标签
-        for (let i = 0; i < chunk.length; i++) {
-          const char = chunk[i]
-
-          if (i + 6 <= chunk.length && chunk.substring(i, i + 7) === '<think>') {
-            isInThinking = true
-            i += 6
-            continue
-          }
-
-          if (i + 7 <= chunk.length && chunk.substring(i, i + 8) === '</think>') {
-            isInThinking = false
-            i += 7
-            continue
-          }
-
-          if (isInThinking) {
-            currentThinking += char
-          } else {
-            currentContent += char
-          }
-        }
-
-        // 更新对话内容
-        const lastMessage = conversations[modelId][conversations[modelId].length - 1]
-        lastMessage.content = currentContent
-        lastMessage.thinking = currentThinking
-        lastMessage.showThinking = currentThinking.length > 0
-
-        scrollToBottom()
-      }
-
-      // 完成流式传输
-      const lastMessage = conversations[modelId][conversations[modelId].length - 1]
-      lastMessage.isStreaming = false
     }
 
     // 清空所有对话
@@ -470,6 +472,14 @@ export default {
     const formatMessage = (content) => {
       if (!content) return ''
       return content.replace(/\n/g, '<br>')
+    }
+
+    // 处理回车键
+    const handleEnter = (e) => {
+      if (!e.shiftKey && !isLoading.value) {
+        e.preventDefault()
+        sendMessage()
+      }
     }
 
     // 滚动到底部
@@ -505,7 +515,8 @@ export default {
       removeImage,
       sendMessage,
       clearAllConversations,
-      formatMessage
+      formatMessage,
+      handleEnter
     }
   }
 }

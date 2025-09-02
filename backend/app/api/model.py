@@ -7,6 +7,8 @@ import os
 from app.database import SessionLocal
 from app.models.model import Model, ModelTest
 from app.schemas.user import UserResponse
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -86,9 +88,9 @@ async def unload_model(model_id: int, db: Session = Depends(get_db)):
 # 模型测试
 @router.post("/test")
 async def test_models(
-    user_id: int,
     test_data: Dict[str, Any],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """测试多个模型对比"""
     models_to_test = test_data.get("models", [])
@@ -134,7 +136,7 @@ async def test_models(
     
     # 保存测试记录
     test_record = ModelTest(
-        user_id=user_id,
+        user_id=current_user.id,
         test_name=f"模型对比测试 - {len(models_to_test)}个模型",
         models_tested=json.dumps(models_to_test),
         input_data=input_text,
@@ -151,14 +153,14 @@ async def test_models(
 
 @router.get("/test/history")
 async def get_test_history(
-    user_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     limit: int = 10,
     offset: int = 0
 ):
     """获取用户的模型测试历史"""
     tests = db.query(ModelTest).filter(
-        ModelTest.user_id == user_id
+        ModelTest.user_id == current_user.id
     ).order_by(ModelTest.created_at.desc()).offset(offset).limit(limit).all()
     
     return [
@@ -176,7 +178,7 @@ async def get_test_history(
 @router.post("/upload-image")
 async def upload_image(
     file: UploadFile = File(...),
-    user_id: int = 1
+    current_user: User = Depends(get_current_user)
 ):
     """上传图片用于模型测试"""
     # 检查文件类型
@@ -210,8 +212,8 @@ async def upload_image(
 @router.post("/add")
 async def add_model(
     model_data: Dict[str, Any],
-    user_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """添加新模型"""
     model = Model(
@@ -221,7 +223,7 @@ async def add_model(
         model_type=model_data.get("model_type", "base"),
         description=model_data.get("description", ""),
         parameters=model_data.get("parameters", ""),
-        created_by=user_id
+        created_by=current_user.id
     )
     
     db.add(model)
