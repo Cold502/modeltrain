@@ -1,13 +1,16 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
 import { message } from './message'
 import store from '../store'
 import router from '../router'
 import { getAccessToken, handle401Error, getAuthHeaders } from './tokenManager'
+import { log, logSafe, error as logError } from './logger'
+
+// 读取环境变量中的 API 基地址，默认为 '/api'
+const apiBaseURL = import.meta.env?.VITE_API_BASE_URL || '/api'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',  // 使用相对路径，通过代理转发
+  baseURL: apiBaseURL,  // 支持通过环境变量配置
   timeout: 30000,
   withCredentials: true,  // 确保发送cookie
   headers: {
@@ -32,7 +35,7 @@ api.interceptors.request.use(
         const token = await getAccessToken()
         config.headers.Authorization = `Bearer ${token}`
       } catch (error) {
-        console.error('获取token失败:', error)
+        logError('获取token失败:', error)
         // 如果是token刷新失败，不要继续请求
         if (error.message === 'Token刷新失败，请重新登录') {
           throw error
@@ -40,14 +43,16 @@ api.interceptors.request.use(
       }
     }
     
-    console.log('🌐 发送请求:', config.method?.toUpperCase(), config.url)
-    console.log('📋 请求头:', config.headers)
-    console.log('🍪 withCredentials:', config.withCredentials)
+    logSafe('🌐 发送请求:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      withCredentials: config.withCredentials
+    })
     
     return config
   },
   error => {
-    console.error('请求错误:', error)
+    logError('请求错误:', error)
     return Promise.reject(error)
   }
 )
@@ -55,16 +60,22 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
-    console.log('✅ 收到响应:', response.status, response.config.url)
+    logSafe('✅ 收到响应:', {
+      status: response.status,
+      url: response.config.url
+    })
     return response
   },
-  async error => {
-    console.error('响应错误:', error)
+  async axiosError => {
+    logError('响应错误:', axiosError)
     
-    const originalRequest = error.config
+    const originalRequest = axiosError.config
     
-    // 如果是401错误且不是刷新token的请求
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 如果是401错误且不是刷新token的请求，且不是登录/注册请求
+    if (axiosError.response?.status === 401 && 
+        !originalRequest._retry && 
+        !originalRequest.url?.includes('/auth/login') && 
+        !originalRequest.url?.includes('/auth/register')) {
       try {
         // 使用统一的401错误处理方法
         const newToken = await handle401Error(originalRequest)
@@ -73,94 +84,50 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         // 如果刷新失败，直接返回错误，不要继续尝试
-        console.error('Token刷新失败，停止重试:', refreshError)
+        logError('Token刷新失败，停止重试:', refreshError)
         return Promise.reject(refreshError)
       }
     }
     
-    // 处理其他错误
-    if (error.response) {
-      const { status, data } = error.response
+    // 只处理真正需要全局处理的错误
+    if (axiosError.response) {
+      const { status } = axiosError.response
       
-      switch (status) {
-        case 401:
-          // 如果是登录页的401，说明是密码或账号错误
-          if (router.currentRoute.value.name === 'Login') {
-            message.error(data.detail || '登录认证失败');
-          } else {
-            // 如果是其他页面的401，说明是token失效，清除本地存储
-            console.log('Token无效，清除本地存储')
-            store.dispatch('logout');
-            // 只有在非登录页面才跳转
-            if (router.currentRoute.value.name !== 'Login') {
-              message.error('认证已过期，请重新登录');
-              router.push('/login');
-            }
-          }
-          break
-        case 403:
-          message.error(data.detail || '权限不足');
-          break
-        case 404:
-          message.error(data.detail || '请求的资源不存在')
-          break
-        case 500:
-          message.error('服务器内部错误')
-          break
-        default:
-          message.error(data.detail || `请求失败 (${status})`)
+      if (status === 401) {
+        // 401是唯一需要全局处理的错误（token失效）
+        // 但是登录/注册的401错误应该由页面处理，不是全局处理
+        const isAuthRequest = originalRequest.url?.includes('/auth/login') || 
+                             originalRequest.url?.includes('/auth/register')
+        
+        if (!isAuthRequest && router.currentRoute.value.name !== 'Login') {
+          log('Token无效，清除本地存储')
+          store.dispatch('logout');
+          message.error('认证已过期，请重新登录');
+          router.push('/login');
+        }
+      } else if (status === 404) {
+        // 404错误通常由页面处理，但登录的404（账户不存在）应该由登录页面处理
+        const isAuthRequest = originalRequest.url?.includes('/auth/login') || 
+                             originalRequest.url?.includes('/auth/register')
+        
+        if (!isAuthRequest) {
+          // 非认证请求的404错误可以全局处理
+          message.error('请求的资源不存在')
+        }
       }
-    } else if (error.request) {
+      // 其他所有错误都由具体页面处理
+    } else if (axiosError.request) {
+      // 网络错误可以全局处理
       message.error('网络错误，请检查网络连接')
     } else {
+      // 请求配置错误
       message.error('请求配置错误')
     }
     
-    return Promise.reject(error)
+    return Promise.reject(axiosError)
   }
 )
 
-// 创建带认证的axios请求方法
-export async function authenticatedRequest(config) {
-  try {
-    // 使用统一的认证头生成方法
-    const authHeaders = await getAuthHeaders(config.headers)
-    
-    const requestConfig = {
-      ...config,
-      headers: authHeaders,
-      withCredentials: true
-    }
-    
-    const response = await axios(requestConfig)
-    
-    // 如果遇到401错误，尝试刷新token并重试
-    if (response.status === 401) {
-      try {
-        const newToken = await handle401Error()
-        
-        // 使用新token重试请求
-        const retryConfig = {
-          ...requestConfig,
-          headers: {
-            ...authHeaders,
-            'Authorization': `Bearer ${newToken}`
-          }
-        }
-        
-        return await axios(retryConfig)
-      } catch (refreshError) {
-        // 刷新失败，返回原始响应
-        return response
-      }
-    }
-    
-    return response
-  } catch (error) {
-    console.error('认证axios请求失败:', error)
-    throw error
-  }
-}
 
 // API方法定义
 export const authAPI = {
@@ -169,7 +136,7 @@ export const authAPI = {
   
   // 用户登录
   login: (loginData) => {
-    console.log('🔐 发送登录请求:', loginData)
+    logSafe('🔐 发送登录请求:', { username: loginData.username })
     return api.post('/auth/login', loginData)
   },
   
@@ -184,7 +151,7 @@ export const authAPI = {
   
   // 刷新token
   refreshToken: () => {
-    console.log('🔄 发送token刷新请求')
+    log('🔄 发送token刷新请求')
     return api.post('/auth/refresh')
   }
 }

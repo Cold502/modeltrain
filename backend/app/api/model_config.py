@@ -4,6 +4,7 @@ from typing import List, Optional
 import uuid
 import httpx
 import asyncio
+import logging
 
 from app.database import get_db
 from app.schemas.model_config import (
@@ -11,8 +12,12 @@ from app.schemas.model_config import (
     ModelConfigResponse, ModelProviderResponse, ModelResponse, RefreshModelsRequest,
     PlaygroundMessageRequest, PlaygroundStreamRequest
 )
+from app.schemas.common import ErrorResponse
 from app.models.model_config import ModelConfig as ModelConfigModel, ModelProvider as ModelProviderModel, ProviderModel
 from app.llm_core.llm_client import get_model_providers, LLMClient
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/model-config", tags=["模型配置"])
 
@@ -331,7 +336,23 @@ DEFAULT_MODEL_CONFIGS = [
 ]
 
 async def init_default_model_configs(db: Session):
-    """初始化默认模型配置到数据库"""
+    """初始化默认模型配置到数据库
+    
+    作用：
+    - 将预定义的模型配置模板批量插入数据库，供用户选择使用。
+    
+    触发链路：
+    - 系统启动时或管理员手动初始化时调用。
+    
+    参数：
+    - db：数据库会话对象。
+    
+    返回：
+    - 无返回值，直接操作数据库。
+    
+    注意：
+    - 检查重复配置避免重复插入；按时间顺序排列（vLLM 最晚，显示在最上面）。
+    """
     try:
         from datetime import datetime, timedelta
         
@@ -369,14 +390,30 @@ async def init_default_model_configs(db: Session):
                 db.add(db_config)
         
         db.commit()
-        print("默认模型配置初始化完成")
+        logger.info("默认模型配置初始化完成")
     except Exception as e:
         db.rollback()
-        print(f"初始化默认模型配置失败: {str(e)}")
+        logger.error(f"初始化默认模型配置失败: {str(e)}")
 
-@router.get("/providers", response_model=List[ModelProviderResponse])
+@router.get("/providers", response_model=List[ModelProviderResponse], responses={500: {"model": ErrorResponse}})
 async def get_providers(db: Session = Depends(get_db)):
-    """获取模型提供商列表"""
+    """获取模型提供商列表
+    
+    作用：
+    - 返回系统中支持的所有模型提供商信息。
+    
+    触发链路：
+    - 前端模型配置页面加载提供商选择列表。
+    
+    参数：
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + 提供商列表（包含 id、name、api_url、requires_api_key）。
+    
+    注意：
+    - 直接返回预定义提供商列表，避免数据库关系问题；包含 API Key 需求标识。
+    """
     try:
         from datetime import datetime
         from app.llm_core.llm_client import provider_requires_api_key
@@ -397,9 +434,25 @@ async def get_providers(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取提供商列表失败: {str(e)}")
 
-@router.get("/", response_model=List[ModelConfigResponse])
+@router.get("/", response_model=List[ModelConfigResponse], responses={500: {"model": ErrorResponse}})
 async def get_model_configs(db: Session = Depends(get_db)):
-    """获取模型配置列表"""
+    """获取模型配置列表
+    
+    作用：
+    - 返回系统中所有已配置的模型配置信息。
+    
+    触发链路：
+    - 前端模型管理页面加载配置列表。
+    
+    参数：
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + 模型配置列表（按创建时间正序排列）。
+    
+    注意：
+    - 包含所有配置的详细信息（提供商、端点、API Key、模型参数等）。
+    """
     try:
         # 按创建时间正序排列，最早的在最上面
         configs = db.query(ModelConfigModel).order_by(ModelConfigModel.created_at.asc()).all()
@@ -407,12 +460,29 @@ async def get_model_configs(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模型配置失败: {str(e)}")
 
-@router.post("/", response_model=ModelConfigResponse)
+@router.post("/", response_model=ModelConfigResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def create_model_config(
     config: ModelConfigCreate, 
     db: Session = Depends(get_db)
 ):
-    """创建模型配置"""
+    """创建模型配置
+    
+    作用：
+    - 在系统中添加新的模型配置记录。
+    
+    触发链路：
+    - 用户在模型配置页面提交新配置表单。
+    
+    参数：
+    - config：包含提供商、端点、API Key、模型信息等的配置对象。
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + `ModelConfigResponse`。
+    
+    注意：
+    - 检查重复配置避免冲突；自动生成 UUID 作为配置 ID；默认用户 ID 为 1。
+    """
     try:
         # 检查是否已存在相同的模型配置
         existing = db.query(ModelConfigModel).filter(
@@ -452,13 +522,31 @@ async def create_model_config(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"创建模型配置失败: {str(e)}")
 
-@router.put("/{config_id}", response_model=ModelConfigResponse)
+@router.put("/{config_id}", response_model=ModelConfigResponse, responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def update_model_config(
     config_id: str,
     config: ModelConfigUpdate,
     db: Session = Depends(get_db)
 ):
-    """更新模型配置"""
+    """更新模型配置
+    
+    作用：
+    - 修改指定模型配置的各项参数。
+    
+    触发链路：
+    - 用户在模型配置页面编辑现有配置。
+    
+    参数：
+    - config_id：要更新的配置 ID。
+    - config：包含更新字段的配置对象。
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + `ModelConfigResponse`。
+    
+    注意：
+    - 仅更新提供的字段；自动转换驼峰命名为下划线命名；验证配置存在性。
+    """
     try:
         db_config = db.query(ModelConfigModel).filter(ModelConfigModel.id == config_id).first()
         if not db_config:
@@ -482,9 +570,26 @@ async def update_model_config(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"更新模型配置失败: {str(e)}")
 
-@router.delete("/{config_id}")
+@router.delete("/{config_id}", responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def delete_model_config(config_id: str, db: Session = Depends(get_db)):
-    """删除模型配置"""
+    """删除模型配置
+    
+    作用：
+    - 从系统中永久删除指定的模型配置。
+    
+    触发链路：
+    - 用户在模型配置页面点击删除配置。
+    
+    参数：
+    - config_id：要删除的配置 ID。
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + { message }。
+    
+    注意：
+    - 验证配置存在性；删除操作不可逆；使用事务确保数据一致性。
+    """
     try:
         db_config = db.query(ModelConfigModel).filter(ModelConfigModel.id == config_id).first()
         if not db_config:
@@ -500,12 +605,29 @@ async def delete_model_config(config_id: str, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"删除模型配置失败: {str(e)}")
 
-@router.get("/models", response_model=List[ModelResponse])
+@router.get("/models", response_model=List[ModelResponse], responses={500: {"model": ErrorResponse}})
 async def get_models(
     provider_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """获取指定提供商的模型列表"""
+    """获取指定提供商的模型列表
+    
+    作用：
+    - 返回指定提供商下所有可用的模型信息。
+    
+    触发链路：
+    - 前端选择提供商后加载对应的模型列表。
+    
+    参数：
+    - provider_id：提供商 ID（可选，未提供时返回空列表）。
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + 模型列表（包含模型 ID、名称、大小、状态等）。
+    
+    注意：
+    - 从 ProviderModel 表查询；需要先调用刷新接口获取最新模型列表。
+    """
     try:
         if not provider_id:
             return []
@@ -514,12 +636,29 @@ async def get_models(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取模型列表失败: {str(e)}")
 
-@router.post("/models/refresh", response_model=List[ModelResponse])
+@router.post("/models/refresh", response_model=List[ModelResponse], responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}, 502: {"model": ErrorResponse}, 503: {"model": ErrorResponse}, 504: {"model": ErrorResponse}})
 async def refresh_models(
     request: RefreshModelsRequest,
     db: Session = Depends(get_db)
 ):
-    """刷新模型列表"""
+    """刷新模型列表
+    
+    作用：
+    - 从指定提供商的 API 获取最新模型列表并更新到数据库。
+    
+    触发链路：
+    - 用户在模型配置页面点击"刷新模型"按钮。
+    
+    参数：
+    - request：包含 endpoint、provider_id、api_key 的刷新请求。
+    - db：数据库会话依赖注入。
+    
+    返回：
+    - 200 + 更新后的模型列表。
+    
+    注意：
+    - 支持 Ollama 和 OpenAI 兼容 API；处理各种网络错误和认证错误；详细日志记录到文件。
+    """
     import logging
     from datetime import datetime
     import os
@@ -591,13 +730,47 @@ async def refresh_models(
 
 # 辅助函数
 def camel_to_snake(name: str) -> str:
-    """将驼峰命名转换为下划线命名"""
+    """将驼峰命名转换为下划线命名
+    
+    作用：
+    - 将驼峰命名（如 camelCase）转换为下划线命名（如 snake_case）。
+    
+    触发链路：
+    - 更新模型配置时自动调用，用于字段名转换。
+    
+    参数：
+    - name：要转换的驼峰命名字符串。
+    
+    返回：
+    - 转换后的下划线命名字符串。
+    
+    注意：
+    - 使用正则表达式处理大小写转换；处理连续大写字母的情况。
+    """
     import re
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 async def fetch_models_from_api(endpoint: str, provider_id: str, api_key: Optional[str] = None):
-    """从API获取模型列表"""
+    """从 API 获取模型列表
+    
+    作用：
+    - 调用指定提供商的 API 获取可用模型列表。
+    
+    触发链路：
+    - refresh_models 接口调用此函数获取最新模型数据。
+    
+    参数：
+    - endpoint：提供商 API 端点 URL。
+    - provider_id：提供商标识符。
+    - api_key：API 密钥（可选）。
+    
+    返回：
+    - 模型列表字典数组。
+    
+    注意：
+    - 支持 Ollama 和 OpenAI 兼容 API；处理时间戳转换；生成安全的模型 ID。
+    """
     import logging
     import os
     logger = logging.getLogger(__name__)
@@ -734,7 +907,25 @@ async def fetch_models_from_api(endpoint: str, provider_id: str, api_key: Option
             raise
 
 async def update_models_in_db(db: Session, provider_id: str, models: List[dict]):
-    """更新数据库中的模型列表"""
+    """更新数据库中的模型列表
+    
+    作用：
+    - 将 API 获取的模型列表更新到数据库 ProviderModel 表。
+    
+    触发链路：
+    - refresh_models 接口在获取模型列表后调用此函数。
+    
+    参数：
+    - db：数据库会话对象。
+    - provider_id：提供商标识符。
+    - models：从 API 获取的模型列表。
+    
+    返回：
+    - 无返回值，直接操作数据库。
+    
+    注意：
+    - 先删除该提供商的所有旧模型，再插入新模型；使用事务确保数据一致性。
+    """
     # 删除旧的模型数据
     db.query(ProviderModel).filter(ProviderModel.provider_id == provider_id).delete()
     

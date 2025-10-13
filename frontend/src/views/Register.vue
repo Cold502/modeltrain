@@ -172,8 +172,13 @@ export default {
         }, 2000)
         
       } catch (error) {
-        // 全局拦截器会处理错误提示，这里留空或只记录日志
-        console.error('注册失败:', error)
+        // 处理注册错误
+        if (error.response && error.response.status === 400) {
+          const errorMessage = error.response.data.error.message || '注册失败，请检查输入信息'
+          message.error(errorMessage)
+        } else {
+          message.error('注册失败，请稍后重试')
+        }
       } finally {
         loading.value = false
       }

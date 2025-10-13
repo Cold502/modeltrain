@@ -9,7 +9,6 @@ export default createStore({
   state: {
     user: null,
     isLoggedIn: false,
-    models: [],
     chatSessions: [],
     currentSession: null,
     activeMenu: '/',
@@ -29,9 +28,6 @@ export default createStore({
       state.currentSession = null
     },
     
-    SET_MODELS(state, models) {
-      state.models = models
-    },
     
     SET_CHAT_SESSIONS(state, sessions) {
       state.chatSessions = sessions
@@ -127,9 +123,6 @@ export default createStore({
       commit('SET_DARK_MODE', darkMode)
     },
     
-    setModels({ commit }, models) {
-      commit('SET_MODELS', models)
-    },
     
     setChatSessions({ commit }, sessions) {
       commit('SET_CHAT_SESSIONS', sessions)
@@ -155,7 +148,6 @@ export default createStore({
   getters: {
     isAdmin: state => state.user && state.user.is_admin,
     userName: state => state.user ? state.user.nickname : '',
-    availableModels: state => state.models.filter(model => model.status === 'active'),
     recentSessions: state => state.chatSessions.slice(0, 10),
     activeMenu: state => state.activeMenu,
     isDarkMode: state => state.isDarkMode

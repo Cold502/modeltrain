@@ -4,18 +4,29 @@ from app.models.user import User
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone  # 添加 timezone
 from typing import Optional
 from app.database import get_db
+import os
+from dotenv import load_dotenv
+import logging
 
-# JWT令牌配置 - 就像给用户发一张临时通行证
-SECRET_KEY = "zsj-sb"  # 密钥
-ALGORITHM = "HS256"  # 加密算法
-ACCESS_TOKEN_EXPIRE_MINUTES = 1  # Access token 15分钟后过期
-REFRESH_TOKEN_EXPIRE_DAYS = 7  # Refresh token 7天后过期
+logger = logging.getLogger(__name__)
+
+
+# 加载环境变量（显式定位到 backend/.env）
+_backend_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+load_dotenv(dotenv_path=_backend_env_path)
+
+# JWT令牌配置 - 从环境变量读取
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback-secret-key")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
+
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
     """验证密码"""
@@ -26,41 +37,41 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """响应令牌"""
-    to_encode = data.copy()  # 复制用户信息
+    """创建访问令牌"""
+    to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta  # 设置自定义过期时间
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)  # 使用默认15分钟过期
-    to_encode.update({"exp": expire})  # 在通行证上标注过期时间
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)  # 加密数据 ，加密密钥，加密算法
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """刷新令牌"""
-    to_encode = data.copy()  # 复制用户信息
+    """创建刷新令牌"""
+    to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta  # 设置自定义过期时间
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)  # 使用默认7天过期
-    to_encode.update({"exp": expire, "type": "refresh"})  # 在通行证上标注过期时间和类型
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)  # 用秘密配方加密制作通行证
+        expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[dict]:
     """检查通行证是否有效 - 解密并验证用户通行证"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])  # 用秘密配方解密通行证
-        print(f"✅ 通行证验证成功: {payload}")
+        logger.debug("通行证验证成功")
         return payload
     except jwt.ExpiredSignatureError:
-        print("❌ 通行证已过期")
+        logger.debug("通行证已过期")
         return None
     except jwt.InvalidTokenError as e:
-        print(f"❌ 通行证验证失败: {e}")
+        logger.debug(f"通行证验证失败: {e}")
         return None
     except Exception as e:
-        print(f"❌ 通行证检查出现异常: {e}")
+        logger.error(f"通行证检查出现异常: {e}")
         return None
 
 def verify_refresh_token(token: str) -> Optional[dict]:
@@ -69,25 +80,25 @@ def verify_refresh_token(token: str) -> Optional[dict]:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         # 检查是否是refresh token
         if payload.get("type") != "refresh":
-            print("❌ Token类型错误，不是refresh token")
+            logger.warning("Token类型错误，不是refresh token")
             return None
-        print(f"✅ 刷新通行证验证成功: {payload}")
+        logger.debug("刷新通行证验证成功")
         return payload
     except jwt.ExpiredSignatureError:
-        print("❌ 刷新通行证已过期")
+        logger.debug("刷新通行证已过期")
         return None
     except jwt.InvalidTokenError as e:
-        print(f"❌ 刷新通行证验证失败: {e}")
+        logger.debug(f"刷新通行证验证失败: {e}")
         return None
     except Exception as e:
-        print(f"❌ 刷新通行证检查出现异常: {e}")
+        logger.error(f"刷新通行证检查出现异常: {e}")
         return None
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     """根据通行证找到当前用户 - 检查通行证并返回对应的用户信息"""
     try:
         token = credentials.credentials  # 从请求中拿到用户的通行证
-        print(f"🔍 验证token: {token[:20]}...")
+        logger.debug("验证token")
         
         payload = verify_token(token)  # 检查通行证是否有效
         if payload is None:
@@ -109,7 +120,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             user = db.query(User).filter(User.id == int(user_id)).first()
             
             if user is None:
-                print(f"❌ 数据库中未找到用户ID: {user_id}")
+                logger.warning(f"数据库中未找到用户ID: {user_id}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="用户不存在",
@@ -117,20 +128,20 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
                 )
             
             if not user.is_active:
-                print(f"❌ 用户账号已被禁用: {user_id}")
+                logger.warning(f"用户账号已被禁用: {user_id}")
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="账号已被禁用",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             
-            print(f"✅ 成功获取用户对象: {user.email}")
+            logger.debug(f"成功获取用户对象: {user.email}")
             return user
             
         except HTTPException:
             raise
         except Exception as e:
-            print(f"❌ 数据库查询错误: {e}")
+            logger.error(f"数据库查询错误: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="数据库查询错误",
@@ -139,7 +150,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ 用户认证错误: {e}")
+        logger.error(f"用户认证错误: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="认证失败",
@@ -196,14 +207,14 @@ def create_admin_user(db: Session):
         )
         db.add(admin_user)
         db.commit()
-        print("✅ 默认管理员账号已创建：admin / admin")
+        logger.info("默认管理员账号已创建：admin / admin")
     else:
         # 如果admin用户已存在但is_admin为False，更新为True
         if not admin_user.is_admin:
             admin_user.is_admin = True
             admin_user.role = "admin"
             db.commit()
-            print("✅ admin用户权限已更新为管理员")
+            logger.info("admin用户权限已更新为管理员")
 
 def get_user_by_email(db: Session, email: str) -> User:
     """通过邮箱获取用户"""

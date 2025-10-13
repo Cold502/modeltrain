@@ -122,7 +122,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 1px 0.1px rgba(0, 0, 0, 0.2);
 }
 
 .theme-switch-thumb.is-dark {

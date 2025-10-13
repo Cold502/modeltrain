@@ -35,16 +35,7 @@ const routes = [
         name: 'ResetPassword',
         component: () => import('@/views/ResetPassword.vue')
     },
-    {
-        path: '/debug-token',
-        name: 'DebugToken',
-        component: () => import('@/views/DebugToken.vue')
-    },
-    {
-        path: '/token-debug',
-        name: 'TokenDebug',
-        component: () => import('@/views/TokenDebug.vue')
-    },
+    
     {
         path: '/dashboard',
         component: Layout,

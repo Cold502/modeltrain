@@ -41,17 +41,10 @@ export default defineConfig({
             if (req.headers.cookie) {
               proxyReq.setHeader('Cookie', req.headers.cookie);
             }
-            // 保持原始host
-            proxyReq.setHeader('Host', '127.0.0.1:8000');
             console.log('代理请求:', req.method, req.url);
           });
           proxy.on('proxyRes', (proxyRes, req, res) => {
             console.log('代理响应:', proxyRes.statusCode, req.url);
-            // 确保响应头包含正确的 CORS 设置
-            proxyRes.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000';
-            proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
-            proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
-            proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With';
           });
         }
       }

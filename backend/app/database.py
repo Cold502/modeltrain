@@ -22,8 +22,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-def create_tables():
-    """创建所有数据库表"""
-    from app.models import user, chat, training, model, model_config
-    Base.metadata.create_all(bind=engine) 

@@ -5,6 +5,9 @@ from typing import List
 import json
 import asyncio
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.database import SessionLocal
 from app.models.chat import ChatSession, ChatMessage, SystemPrompt
@@ -20,6 +23,7 @@ from app.llm_core.llm_client import LLMClient
 from app.models.model_config import ModelConfig as ModelConfigModel
 from app.utils.auth import get_current_user
 import uuid
+from app.schemas.common import ErrorResponse
 
 router = APIRouter()
 
@@ -31,13 +35,31 @@ def get_db():
         db.close()
 
 # 聊天会话管理
-@router.post("/sessions", response_model=ChatSessionResponse)
+@router.post("/sessions", response_model=ChatSessionResponse, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def create_session(
     session_data: ChatSessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """创建新的聊天会话"""
+    """创建新的聊天会话
+
+    作用：
+    - 为当前用户创建一条新的聊天会话记录，返回会话基础信息。
+
+    触发链路：
+    - 前端点击“新建对话” → 提交标题等必要信息 → 写入数据库 → 返回 `ChatSessionResponse`。
+
+    参数：
+    - session_data：请求体（会话标题等）。
+    - db：数据库会话。
+    - current_user：当前认证用户（依赖注入）。
+
+    返回：
+    - 200 + `ChatSessionResponse`。
+
+    注意：
+    - 会话归属设置为当前用户，避免跨用户访问。
+    """
     session = ChatSession(
         user_id=current_user.id,
         title=session_data.title
@@ -47,33 +69,62 @@ async def create_session(
     db.refresh(session)
     return session
 
-@router.get("/sessions", response_model=List[ChatSessionResponse])
+@router.get("/sessions", response_model=List[ChatSessionResponse], responses={401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def get_user_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     limit: int = 20,
     offset: int = 0
 ):
-    """获取用户的聊天会话列表"""
+    """获取用户的聊天会话列表
+
+    作用：
+    - 分页返回当前用户的会话列表，按最近更新时间倒序。
+
+    参数：
+    - limit：每页数量（默认 20）。
+    - offset：偏移量（默认 0）。
+    - db/current_user：依赖注入。
+
+    返回：
+    - 200 + `List[ChatSessionResponse]`。
+
+    注意：
+    - 仅返回当前用户自己的会话。
+    """
     try:
         sessions = db.query(ChatSession).filter(
             ChatSession.user_id == current_user.id
         ).order_by(ChatSession.updated_at.desc()).offset(offset).limit(limit).all()
         return sessions
     except Exception as e:
-        print(f"获取会话列表时出现错误: {e}")
+        logger.error(f"获取会话列表时出现错误: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取会话列表失败"
         )
 
-@router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
+@router.get("/sessions/{session_id}", response_model=ChatSessionResponse, responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def get_session(
     session_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取特定聊天会话及其消息"""
+    """获取特定聊天会话及其消息
+
+    作用：
+    - 返回指定会话及其按时间升序排列的消息列表。
+
+    参数：
+    - session_id：会话 ID。
+    - db/current_user：依赖注入。
+
+    返回：
+    - 200 + `ChatSessionResponse`（包含 messages）。
+
+    注意：
+    - 仅允许访问当前用户自己的会话，未找到则返回 404。
+    """
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id
@@ -142,42 +193,60 @@ async def delete_session(
     return {"message": "聊天会话已删除"}
 
 # 聊天消息
-@router.post("/messages", response_model=ChatMessageResponse)
+@router.post("/messages", response_model=ChatMessageResponse, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def send_message(
     message_data: ChatMessageCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """发送聊天消息"""
-    print(f"🔍 收到消息保存请求: {message_data}")
-    print(f"🔍 用户ID: {current_user.id}")
+    """发送聊天消息
+
+    作用：
+    - 在指定会话（或自动创建新会话）中保存一条用户/系统/助手消息。
+
+    触发链路：
+    - 前端发送消息 → 若未提供会话 ID 则先创建会话 → 校验会话归属 → 持久化消息。
+
+    参数：
+    - message_data：消息请求体（role, content, model_name, is_streaming, session_id）。
+    - db/current_user：依赖注入。
+
+    返回：
+    - 200 + `ChatMessageResponse`（新消息的持久化结果）。
+
+    注意：
+    - 仅允许向当前用户自己的会话写入；否则返回 404。
+    - is_streaming 仅标记是否使用流式返回，具体推理由上层调用控制。
+    """
+    logger.info(f"收到消息保存请求，用户ID: {current_user.id}")
+    # 用户ID已在上面记录
     
     # 如果没有指定会话，创建新会话
     if not message_data.session_id:
-        print("🔍 创建新会话...")
+        logger.debug("创建新会话")
         session = ChatSession(user_id=current_user.id, title="新对话")
         db.add(session)
         db.commit()
         db.refresh(session)
         session_id = session.id
-        print(f"🔍 新会话ID: {session_id}")
+        logger.debug(f"新会话ID: {session_id}")
     else:
         session_id = message_data.session_id
-        print(f"🔍 使用现有会话ID: {session_id}")
+        logger.debug(f"使用现有会话ID: {session_id}")
         # 验证会话属于当前用户
         session = db.query(ChatSession).filter(
             ChatSession.id == session_id,
             ChatSession.user_id == current_user.id
         ).first()
         if not session:
-            print(f"🔍 会话不存在或权限不足")
+            logger.warning(f"会话不存在或权限不足: {session_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="聊天会话不存在"
             )
     
     # 保存消息（支持用户指定role）
-    print(f"🔍 保存消息到会话 {session_id}")
+    logger.debug(f"保存消息到会话 {session_id}")
     message = ChatMessage(
         session_id=session_id,
         role=message_data.role,
@@ -188,7 +257,7 @@ async def send_message(
     db.add(message)
     db.commit()
     db.refresh(message)
-    print(f"🔍 消息保存成功，ID: {message.id}")
+    logger.info(f"消息保存成功，ID: {message.id}")
     
     return message
 
@@ -198,7 +267,21 @@ async def export_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """导出聊天会话为txt文件"""
+    """导出聊天会话为 txt 文件
+
+    作用：
+    - 将指定会话与消息渲染为纯文本内容，返回下载响应。
+
+    参数：
+    - session_id：会话 ID。
+    - db/current_user：依赖注入。
+
+    返回：
+    - 200 + 文本下载（Content-Disposition: attachment）。
+
+    注意：
+    - 仅允许导出当前用户自己的会话；大体量时应考虑分页/流式输出。
+    """
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id,
         ChatSession.user_id == current_user.id
@@ -561,8 +644,12 @@ async def model_chat_stream(
             # 流式输出
             async for chunk in stream:
                 if chunk:
-                    # 使用正确的SSE格式
-                    yield f"data: {chunk}\n\n"
+                    # 为了遵循 SSE 规范并保留原始换行，将内容按行切分并为每行添加 data: 前缀
+                    text = str(chunk)
+                    for subline in text.splitlines():
+                        yield f"data: {subline}\n"
+                    # 以空行结尾，表示一个完整事件
+                    yield "\n"
             
             # 发送结束标记
             yield "data: [DONE]\n\n"

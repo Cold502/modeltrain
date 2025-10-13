@@ -142,8 +142,13 @@ export default {
         }, 100)
         
       } catch (error) {
-        console.error('❌ 登录失败:', error)
-        // 全局拦截器会处理错误提示，这里留空或只记录日志
+        // 处理登录错误
+        if (error.response && (error.response.status === 400 || error.response.status === 401 || error.response.status === 404)) {
+          const errorMessage = error.response.data.error.message || '登录失败，请检查用户名和密码'
+          message.error(errorMessage)
+        } else {
+          message.error('登录失败，请稍后重试')
+        }
       } finally {
         loading.value = false
       }

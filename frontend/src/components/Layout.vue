@@ -170,12 +170,17 @@ export default {
       return `/imgs/default-avatar.svg`
     })
 
-    const handleCommand = (command) => {
+    const handleCommand = async (command) => {
       console.log('📋 用户操作:', command)
       if (command === 'logout') {
-        store.dispatch('logout')
-        router.push('/login')
-        message.success('已退出登录')
+        try {
+          await store.dispatch('logout')
+          router.push('/login')
+          message.success('已退出登录')
+        } catch (error) {
+          console.error('登出失败:', error)
+          message.error('登出失败，请重试')
+        }
       }
     }
 
@@ -344,7 +349,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 1px 0.1px rgba(0, 0, 0, 0.2);
 }
 
 .theme-switch-thumb.is-dark {

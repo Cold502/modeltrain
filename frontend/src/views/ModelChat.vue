@@ -58,7 +58,7 @@
               </div>
 
               <!-- 思维链显示 -->
-              <div v-if="message.thinking" class="thinking-section">
+              <div v-if="message.thinking && message.thinking.trim()" class="thinking-section">
                 <div class="thinking-header" @click="toggleThinking(message)">
                   <el-icon>
                     <Reading/>
@@ -75,13 +75,29 @@
 
               <!-- 消息内容 -->
               <div class="message-text"
-                   :class="{ 'streaming-empty': message.isStreaming && !message.content.trim() }"
+                   :class="{ 
+                     'streaming-empty': message.isStreaming && !message.content.trim(),
+                     'is-error': message.isError
+                   }"
                    v-html="renderMarkdown(message.content) || (message.isStreaming ? '<span class=&quot;streaming-placeholder&quot;>AI正在思考中...</span>' : '')">
               </div>
 
-              <!-- AI消息下载按钮 -->
+              <!-- AI消息操作按钮 -->
               <div v-if="message.role === 'assistant' && !message.isStreaming" class="message-download-area">
+                <!-- 错误消息的重新发送按钮 -->
                 <el-button
+                    v-if="message.isError"
+                    type="warning"
+                    size="small"
+                    :icon="Refresh"
+                    @click="retryMessage(message)"
+                    class="retry-message-btn"
+                >
+                  重新发送
+                </el-button>
+                <!-- 正常消息的下载按钮 -->
+                <el-button
+                    v-else
                     type="primary"
                     size="small"
                     :icon="Download"
@@ -188,12 +204,13 @@ import {ref, computed, onMounted, nextTick, watch} from 'vue'
 import {useStore} from 'vuex'
 import {ElMessageBox, ElMessage} from 'element-plus'
 import {message} from '../utils/message'
-import {ChatDotRound, Delete, Avatar, Reading, ArrowDown, Download} from '@element-plus/icons-vue'
+import {ChatDotRound, Delete, Avatar, Reading, ArrowDown, Download, Refresh} from '@element-plus/icons-vue'
 import {chatAPI, modelAPI, modelConfigAPI} from '../utils/api'
 import {marked} from 'marked'
 import hljs from 'highlight.js'
 import api from '../utils/api'
 import { createSSEStream } from '../utils/tokenManager'
+import { parseThinkingContent, enrichMessageWithThinking } from '../utils/thinkParser'
 export default {
   name: 'ModelChat',
   components: {
@@ -205,7 +222,6 @@ export default {
     Download
   },
   setup() {
-    console.log('🔷 ModelChat setup函数开始执行');
     const store = useStore()
 
     const chatSessions = ref([])
@@ -283,15 +299,9 @@ export default {
 
     const loadModels = async () => {
       try {
-        console.log('🔄 开始加载模型列表...')
         const response = await modelConfigAPI.getModels()
-        console.log('📡 模型API响应:', response)
-        
         const models = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : [])
-        console.log('📋 原始模型数据:', models)
-        
         const filteredModels = models.filter(m => m.status === 1)
-        console.log('✅ 过滤后的模型数据:', filteredModels)
         
         availableModels.value = filteredModels.map(config => ({
           id: config.id,
@@ -301,19 +311,13 @@ export default {
           configId: config.id
         }))
         
-        console.log('🎯 最终可用模型列表:', availableModels.value)
-        console.log('🔍 当前选中模型:', selectedModel.value)
-        
         if (availableModels.value.length > 0 && !selectedModel.value) {
           selectedModel.value = availableModels.value[0].configId
-          console.log('🎯 设置默认模型:', selectedModel.value)
         }
         
-        // 强制触发响应式更新
         await nextTick()
-        console.log('🔄 响应式更新完成')
       } catch (error) {
-        console.error('❌ 加载模型列表失败:', error)
+        console.error('加载模型列表失败:', error)
         availableModels.value = []
       }
     }
@@ -338,21 +342,11 @@ export default {
 
     const loadSessions = async () => {
       try {
-        console.log('🔄 开始加载会话列表...')
-        console.log('当前用户状态:', store.state.user)
         const response = await chatAPI.getSessions()
-        console.log('会话API响应:', response)
         const sessions = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : [])
         chatSessions.value = sessions
-
-        // 如果没有当前会话且有历史会话，不自动选择第一个，让用户手动点击
-        console.log(`✅ 成功加载了 ${sessions.length} 个会话`)
       } catch (error) {
-        console.error('❌ 加载会话失败:', error)
-        if (error.response) {
-          console.error('错误响应状态:', error.response.status)
-          console.error('错误响应数据:', error.response.data)
-        }
+        console.error('加载会话失败:', error)
         ElMessage.warning('加载聊天历史失败，请检查网络连接')
         chatSessions.value = []
       }
@@ -370,10 +364,24 @@ export default {
 
     const selectSession = async (session) => {
       try {
-        console.log('🔄 正在加载会话:', session.id)
-        console.log('当前用户状态:', store.state.user)
+        // 检查是否有正在进行的流式处理
+        if (currentSession.value && currentSession.value.messages) {
+          const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
+          if (lastMessage && lastMessage.isStreaming) {
+            console.warn('⚠️ 有正在进行的流式处理，请等待完成后再切换会话');
+            return;
+          }
+        }
+        
         const response = await chatAPI.getSession(session.id)
-        console.log('会话详情API响应:', response)
+        console.log('🔍 获取会话详情响应:', response)
+        console.log('🔍 响应数据结构:', {
+          hasData: !!response.data,
+          dataType: typeof response.data,
+          hasMessages: !!response.data?.messages,
+          messagesType: typeof response.data?.messages,
+          messagesLength: response.data?.messages?.length || 0
+        })
 
         // 确保响应数据格式正确
         const sessionDetail = response.data || response
@@ -383,11 +391,22 @@ export default {
 
         // 确保messages是数组
         if (!Array.isArray(sessionDetail.messages)) {
+          console.log('⚠️ messages不是数组，当前值:', sessionDetail.messages)
           sessionDetail.messages = []
+        } else {
+          console.log('✅ messages是数组，长度:', sessionDetail.messages.length)
+          console.log('📋 消息列表:', sessionDetail.messages)
         }
 
+        // 为历史消息解析思维过程
+        sessionDetail.messages = sessionDetail.messages.map(message => {
+          if (message.role === 'assistant' && message.content) {
+            return enrichMessageWithThinking(message, message.content);
+          }
+          return message;
+        });
+
         currentSession.value = sessionDetail
-        console.log(`✅ 成功加载会话: ${sessionDetail.title}, 包含 ${sessionDetail.messages.length} 条消息`)
 
         // 等待下一个tick后滚动到底部
         await nextTick()
@@ -474,6 +493,45 @@ export default {
       }
     }
 
+    const retryMessage = async (message) => {
+      try {
+        // 找到对应的用户消息
+        const messageIndex = currentSession.value.messages.findIndex(msg => msg.id === message.id);
+        if (messageIndex === -1) {
+          ElMessage.error('找不到对应的消息');
+          return;
+        }
+        
+        // 找到前一条用户消息
+        let userMessage = null;
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (currentSession.value.messages[i].role === 'user') {
+            userMessage = currentSession.value.messages[i];
+            break;
+          }
+        }
+        
+        if (!userMessage) {
+          ElMessage.error('找不到对应的用户消息');
+          return;
+        }
+        
+        // 移除错误消息
+        currentSession.value.messages.splice(messageIndex, 1);
+        
+        // 设置输入框内容为用户消息
+        inputMessage.value = userMessage.content;
+        
+        // 重新发送消息
+        await sendMessage();
+        
+        ElMessage.success('消息重新发送成功');
+      } catch (error) {
+        console.error('重新发送消息失败:', error);
+        ElMessage.error('重新发送失败: ' + error.message);
+      }
+    }
+
     const handleEnter = (e) => {
       if (!e.shiftKey && !sending.value) {
         sendMessage()
@@ -484,30 +542,9 @@ export default {
       message.showThinking = !message.showThinking
     }
 
-    // 解析思维链内容
-    const parseThinkingContent = (content) => {
-      const thinkingRegex = /<think>(.*?)<\/think>/s
-      const match = content.match(thinkingRegex)
-
-      if (match) {
-        return {
-          thinking: match[1].trim(),
-          content: content.replace(thinkingRegex, '').trim(),
-          hasThinking: true
-        }
-      }
-
-      return {
-        thinking: '',
-        content: content,
-        hasThinking: false
-      }
-    }
 
     // 处理流式响应
-const handleStreamingResponse = async (requestData) => {
-  console.log('🚀 开始处理流式响应请求:', requestData);
-
+const handleStreamingResponse = async (requestData, sessionId, onCompleteCallback) => {
   // 创建空的助手消息
   const assistantMessage = {
     id: `assistant-${Date.now()}`,
@@ -517,15 +554,11 @@ const handleStreamingResponse = async (requestData) => {
     created_at: new Date().toISOString()
   };
 
-  console.log('📝 创建空的助手消息:', assistantMessage);
-
   if (!currentSession.value.messages) {
     currentSession.value.messages = [];
   }
   currentSession.value.messages.push(assistantMessage);
-  console.log('📥 添加空消息到会话中，当前消息数量:', currentSession.value.messages.length);
   scrollToBottom();
-  console.log('⏬ 滚动到底部');
 
   try {
     // 使用新的SSE流式处理函数
@@ -534,46 +567,69 @@ const handleStreamingResponse = async (requestData) => {
       requestData,
       // onChunk回调：每次收到新内容时更新消息
       (currentContent) => {
-        console.log('🔄 更新消息内容，长度:', currentContent.length);
-        const messageIndex = currentSession.value.messages.length - 1;
-        if (messageIndex >= 0) {
-          currentSession.value.messages[messageIndex] = {
-            ...currentSession.value.messages[messageIndex],
-            content: currentContent
-          };
-          scrollToBottom();
+        // 只有当前显示的会话是原始会话时才更新UI
+        if (currentSession.value.id === sessionId) {
+          const messageIndex = currentSession.value.messages.length - 1;
+          if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
+            // 实时解析思维过程，即使在流式过程中
+            const parsed = parseThinkingContent(currentContent);
+            
+            // 如果检测到思维过程开始，立即显示思维过程区域
+            const hasThinkStart = currentContent.includes('<think>');
+            
+            // 确保消息对象存在再更新
+            const currentMessage = currentSession.value.messages[messageIndex];
+            if (currentMessage) {
+              currentSession.value.messages[messageIndex] = {
+                ...currentMessage,
+                content: parsed.content,
+                thinking: parsed.thinking,
+                showThinking: hasThinkStart, // 只要开始就显示，不等结束
+                isStreaming: true
+              };
+              scrollToBottom();
+            }
+          }
         }
       },
       // onComplete回调：流式传输完成时
       (finalContent) => {
-        console.log('✅ 流式传输完成，最终内容长度:', finalContent.length);
-        const messageIndex = currentSession.value.messages.length - 1;
-        if (messageIndex >= 0) {
-          currentSession.value.messages[messageIndex] = {
-            ...currentSession.value.messages[messageIndex],
-            content: finalContent,
-            isStreaming: false
-          };
-          scrollToBottom();
+        // 只有当前显示的会话是原始会话时才更新UI
+        if (currentSession.value.id === originalSessionId) {
+          const messageIndex = currentSession.value.messages.length - 1;
+          if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
+            const currentMessage = currentSession.value.messages[messageIndex];
+            if (currentMessage) {
+              currentSession.value.messages[messageIndex] = { ...currentMessage, isStreaming: false };
+              scrollToBottom();
+            }
+          }
+        }
+        // 通过回调将最终内容传递出去
+        if (onCompleteCallback) {
+          onCompleteCallback(finalContent);
         }
       },
       // onError回调：发生错误时
       (error) => {
-        console.error('💥 流式处理错误:', error);
+        console.error('流式处理错误:', error);
         const messageIndex = currentSession.value.messages.length - 1;
-        if (messageIndex >= 0) {
-          currentSession.value.messages[messageIndex] = {
-            ...currentSession.value.messages[messageIndex],
-            content: `错误: ${error.message}`,
-            isStreaming: false
-          };
+        if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
+          const currentMessage = currentSession.value.messages[messageIndex];
+          if (currentMessage) {
+            currentSession.value.messages[messageIndex] = {
+              ...currentMessage,
+              content: `错误: ${error.message}`,
+              isStreaming: false
+            };
+          }
         }
         throw error;
       }
     );
 
   } catch (error) {
-    console.error('🔥 流式请求处理失败:', error);
+    console.error('流式请求处理失败:', error);
 
     // 移除正在流式传输的消息
     if (currentSession.value && currentSession.value.messages) {
@@ -582,7 +638,6 @@ const handleStreamingResponse = async (requestData) => {
       );
       if (messageIndex !== -1) {
         currentSession.value.messages.splice(messageIndex, 1);
-        console.log('🗑️ 移除错误消息，索引:', messageIndex);
       }
     }
 
@@ -591,27 +646,29 @@ const handleStreamingResponse = async (requestData) => {
   }
 };
 const sendMessage = async () => {
-  console.log('🚀 开始发送消息流程');
-  console.log('📝 输入消息内容:', inputMessage.value);
-  console.log('🔄 当前流式开关状态:', isStreaming.value);
-  console.log('📡 当前选中模型:', selectedModel.value);
-
   if (!inputMessage.value.trim() || sending.value) {
-    console.log('⚠️ 消息为空或正在发送中，取消发送');
     return;
   }
 
+  // 检查是否有正在进行的流式处理
+  if (currentSession.value && currentSession.value.messages) {
+    const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
+    if (lastMessage && lastMessage.isStreaming) {
+      ElMessage.warning('请等待当前回复完成');
+      return;
+    }
+  }
+
   if (!selectedModel.value) {
-    console.log('⚠️ 未选择模型');
     ElMessage.warning('请先选择一个对话模型');
     return;
   }
 
   const userMessageContent = inputMessage.value.trim();
-  console.log('💬 用户消息内容:', userMessageContent);
   inputMessage.value = '';
   sending.value = true;
-  console.log('🔒 设置发送状态为true');
+
+
 
   // 立即在前端显示用户消息
   const userMessage = {
@@ -625,8 +682,34 @@ const sendMessage = async () => {
     currentSession.value.messages = [];
   }
   currentSession.value.messages.push(userMessage);
-  console.log('📥 添加用户消息到会话');
   scrollToBottom();
+
+  let originalSessionId = currentSession.value?.id || null;
+  // 提前保存用户消息，确保不会因AI调用失败而丢失
+  try {
+    if (!originalSessionId) {
+      // 如果是新会话，先创建会话并获取ID
+      const title = userMessageContent.length > 20
+        ? userMessageContent.substring(0, 20) + '...'
+        : userMessageContent;
+      const sessionResponse = await chatAPI.createSession({ title });
+      originalSessionId = sessionResponse.data.id;
+      currentSession.value.id = originalSessionId; // 更新当前会话ID
+      await loadSessions(); // 刷新侧边栏列表
+    }
+
+    await chatAPI.sendMessage({
+      session_id: originalSessionId,
+      content: userMessageContent,
+      role: 'user',
+      model_name: selectedModel.value || 'unknown'
+    });
+  } catch (error) {
+    console.error('保存用户消息失败:', error);
+    ElMessage.error('无法保存您的消息，请检查网络连接');
+    sending.value = false;
+    return; // 保存失败则不继续
+  }
 
   try {
     // 构建消息数组，如果选择了系统提示词则添加system消息
@@ -640,7 +723,6 @@ const sendMessage = async () => {
           role: 'system',
           content: selectedPromptData.content
         });
-        console.log('📎 添加系统提示词:', selectedPromptData.content);
       }
     }
 
@@ -649,86 +731,118 @@ const sendMessage = async () => {
       role: 'user',
       content: userMessageContent
     });
-    console.log('📋 完整消息历史:', messages);
 
     // 使用chat API进行对话
     const requestData = {
       model_config_id: selectedModel.value,
       messages: messages
     };
-    console.log('📦 准备发送的请求数据:', requestData);
 
     let aiResponseContent = '';
-
-    console.log('🧪 检查是否使用流式输出:', isStreaming.value);
-    if (isStreaming.value) {
-      console.log('🌊 进入流式处理分支');
-      // 流式调用
+    let originalResponseContent = ''; // 保存原始内容（包含<think>标签）
+    
+    // 重试机制：最多重试2次
+    let retryCount = 0;
+    const maxRetries = 2;
+    let lastError = null;
+    
+    while (retryCount < maxRetries) {
       try {
-        console.log('📲 调用handleStreamingResponse函数');
-        await handleStreamingResponse(requestData);
-        console.log('✅ 流式响应处理完成');
-        // 获取流式响应的最终内容
-        const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
-          aiResponseContent = lastMessage.content;
-          console.log('📄 获取到AI响应内容，长度:', aiResponseContent.length);
+        if (isStreaming.value) {
+          await handleStreamingResponse(requestData, originalSessionId, async (finalContent) => {
+            const contentToSave = finalContent || '';
+            // 保存流式完成后的AI回复到后端（容错两次）
+            let tries = 0;
+            while (tries < 2) {
+              try {
+                await chatAPI.sendMessage({
+                  session_id: originalSessionId,
+                  content: contentToSave,
+                  role: 'assistant',
+                  model_name: selectedModel.value || 'unknown'
+                });
+                break;
+              } catch (e) {
+                tries++;
+                if (tries >= 2) break;
+                await new Promise(r => setTimeout(r, 800));
+              }
+            }
+          });
+          // 获取流式响应的最终内容（用于本地变量）
+          const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
+          if (lastMessage && lastMessage.role === 'assistant') {
+            aiResponseContent = lastMessage.content;
+          }
+          break; // 成功，跳出重试循环
+        } else {
+          const response = await api.post('/chat/', requestData);
+          
+          // 解析响应内容
+          const responseContent = response.data.response || '抱歉，我无法回答这个问题。';
+          originalResponseContent = responseContent; // 保存原始内容
+          const parsed = parseThinkingContent(responseContent);
+          
+          // 添加AI回复到对话
+          const assistantMessage = {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: parsed.content,
+            thinking: parsed.thinking,
+            showThinking: parsed.hasThinking,
+            created_at: new Date().toISOString()
+          };
+          
+          // 只有当前显示的会话是原始会话时才更新UI
+          if (currentSession.value.id === originalSessionId) {
+            currentSession.value.messages.push(assistantMessage);
+            scrollToBottom();
+          }
+          
+          aiResponseContent = responseContent;
+          break; // 成功，跳出重试循环
         }
-      } catch (streamError) {
-        console.error('💥 流式请求失败，回退到普通请求:', streamError);
-        // 流式请求失败，回退到普通请求
-        const response = await api.post('/chat/', requestData);
-
-        // 解析响应内容
-        const responseContent = response.data.response || '抱歉，我无法回答这个问题。';
-        const parsed = parseThinkingContent(responseContent);
-
-        // 添加AI回复到对话
-        const assistantMessage = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: parsed.content,
-          thinking: parsed.thinking,
-          showThinking: parsed.hasThinking,
-          created_at: new Date().toISOString()
-        };
-
-        currentSession.value.messages.push(assistantMessage);
-        aiResponseContent = parsed.content;
-        console.log('🔄 使用普通请求获取响应内容，长度:', aiResponseContent.length);
+      } catch (error) {
+        retryCount++;
+        lastError = error;
+        console.error(`请求失败，第${retryCount}次尝试:`, error);
+        
+        if (retryCount < maxRetries) {
+          // 等待1秒后重试
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // 移除之前的错误消息（如果存在）
+          if (currentSession.value.messages.length > 0) {
+            const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
+              currentSession.value.messages.pop();
+            }
+          }
+        } else {
+          // 所有重试都失败，显示错误消息
+          const errorMessage = {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: '抱歉，模型调用失败，请稍后重试。',
+            isError: true,
+            created_at: new Date().toISOString()
+          };
+          
+          // 只有当前显示的会话是原始会话时才更新UI
+          if (currentSession.value.id === originalSessionId) {
+            currentSession.value.messages.push(errorMessage);
+            scrollToBottom();
+          }
+          
+          throw lastError; // 重新抛出最后一个错误
+        }
       }
-    } else {
-      console.log('📝 进入普通处理分支');
-      // 普通调用
-      const response = await api.post('/chat/', requestData);
-      console.log('📬 普通请求响应:', response);
-
-      // 解析响应内容
-      const responseContent = response.data.response || '抱歉，我无法回答这个问题。';
-      const parsed = parseThinkingContent(responseContent);
-      console.log('🧩 解析响应内容:', parsed);
-
-      // 添加AI回复到对话
-      const assistantMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: parsed.content,
-        thinking: parsed.thinking,
-        showThinking: parsed.hasThinking,
-        created_at: new Date().toISOString()
-      };
-
-      currentSession.value.messages.push(assistantMessage);
-      aiResponseContent = parsed.content;
-      console.log('📄 普通请求响应内容长度:', aiResponseContent.length);
     }
 
     // 保存会话和消息记录到后端
     try {
-      console.log('💾 开始保存会话和消息到后端...');
       if (!currentSession.value.id) {
         // 创建新会话
-        console.log('🆕 创建新会话...');
         const title = userMessageContent.length > 20
           ? userMessageContent.substring(0, 20) + '...'
           : userMessageContent;
@@ -736,7 +850,6 @@ const sendMessage = async () => {
         const sessionResponse = await chatAPI.createSession({
           title: title
         });
-        console.log('🆕 新会话创建成功:', sessionResponse.data);
 
         // 更新当前会话信息
         currentSession.value.id = sessionResponse.data.id;
@@ -748,89 +861,62 @@ const sendMessage = async () => {
         await loadSessions();
       }
 
-      // 保存用户消息
-      console.log('👤 保存用户消息...', {
-        session_id: currentSession.value.id,
+      // 保存用户消息（使用原始会话ID）
+      console.log('💾 保存用户消息到数据库:', {
+        session_id: originalSessionId,
         content: userMessageContent,
         role: 'user',
         model_name: selectedModel.value || 'unknown'
       });
-      await chatAPI.sendMessage({
-        session_id: currentSession.value.id,
+      const userMessageResponse = await chatAPI.sendMessage({
+        session_id: originalSessionId,
         content: userMessageContent,
         role: 'user',
         model_name: selectedModel.value || 'unknown'
       });
-      console.log('✅ 用户消息保存成功');
+      console.log('✅ 用户消息保存响应:', userMessageResponse);
 
-      // 保存AI回复
-      if (aiResponseContent) {
-        console.log('🤖 保存AI回复...', {
-          session_id: currentSession.value.id,
-          content: aiResponseContent,
+      // 保存AI回复（使用原始内容和原始会话ID）
+      if (originalResponseContent) {
+        console.log('💾 保存AI回复到数据库:', {
+          session_id: originalSessionId,
+          content: originalResponseContent,
           role: 'assistant',
           model_name: selectedModel.value || 'unknown'
         });
-        await chatAPI.sendMessage({
-          session_id: currentSession.value.id,
-          content: aiResponseContent,
+        const aiMessageResponse = await chatAPI.sendMessage({
+          session_id: originalSessionId,
+          content: originalResponseContent,
           role: 'assistant',
           model_name: selectedModel.value || 'unknown'
         });
-        console.log('✅ AI回复保存成功');
+        console.log('✅ AI回复保存响应:', aiMessageResponse);
+      } else {
+        console.log('⚠️ 没有AI回复内容需要保存');
       }
 
     } catch (error) {
-      console.error('❌ 保存聊天记录失败:', error);
-      if (error.response) {
-        console.error('📄 错误响应:', error.response.data);
-      }
+      console.error('保存聊天记录失败:', error);
     }
 
   } catch (error) {
-    console.error('💥 发送消息失败:', error);
-    const errorMessage = {
-      id: `error-${Date.now()}`,
-      role: 'assistant',
-      content: '抱歉，请求出错，请稍后重试。详细错误：' + (error.response?.data?.detail || error.message),
-      created_at: new Date().toISOString()
-    };
-    currentSession.value.messages.push(errorMessage);
+    // 此处的catch只用于捕获从重试循环中最终抛出的、无法处理的错误。
+    // UI更新和错误保存逻辑已在循环内部处理，这里只做日志记录。
+    console.error('AI调用最终失败:', error);
   } finally {
     sending.value = false;
-    console.log('🔓 解除发送状态');
     scrollToBottom();
   }
 };
 
 
     onMounted(() => {
-      // 调试用户状态
-      console.log('🔍 ModelChat组件挂载时的用户状态:')
-      console.log('Store用户:', store.state.user)
-      console.log('是否登录:', store.state.isLoggedIn)
-      console.log('LocalStorage用户:', localStorage.getItem('user'))
-
       loadModels()
       loadPrompts()
       loadSessions()
     })
 
-    // 监听模型选择变化
-    watch(selectedModel, (newValue, oldValue) => {
-      console.log('🎯 模型选择变化:', { oldValue, newValue })
-    })
 
-    // 监听可用模型列表变化
-    watch(availableModels, (newValue) => {
-      console.log('📋 可用模型列表变化:', newValue)
-    }, { deep: true })
-
-    // 调试函数：手动设置模型
-    const debugSetModel = (modelId) => {
-      console.log('🔧 手动设置模型:', modelId)
-      selectedModel.value = modelId
-    }
 
     return {
       chatSessions,
@@ -852,14 +938,15 @@ const sendMessage = async () => {
       selectSession,
       deleteSession,
       downloadMessage,
+      retryMessage,
       sendMessage,
       toggleThinking,
-      parseThinkingContent,
-      debugSetModel,
       ChatDotRound,
       Delete,
       Reading,
-      ArrowDown
+      ArrowDown,
+      Download,
+      Refresh
     }
   }
 }
@@ -1327,6 +1414,17 @@ const sendMessage = async () => {
 .message-text :deep(pre code) {
   background: none;
   padding: 0;
+}
+
+/* 错误消息样式 */
+.message-item.assistant .message-content-wrapper .message-text.is-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.retry-message-btn {
+  margin-left: 8px;
 }
 
 /* 滚动条样式 */
