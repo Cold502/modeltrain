@@ -6,10 +6,12 @@ import uvicorn  # 开发调试服务器
 import os  # 读取环境变量
 import logging  # 统一日志接口
 from dotenv import load_dotenv  # 读取 .env 文件中的环境变量
+from contextlib import asynccontextmanager  # 用于新版 lifespan
 
 from app.database import SessionLocal, engine, get_db  # 数据库会话工厂与依赖
 from app.api import auth, chat, model, training, admin, model_config, playground  # 各业务路由模块
-from app.models import user as user_models  # 用户模型（确保模型注册）
+# 导入所有模型以确保 Base.metadata.create_all 能创建所有表
+from app.models import user, chat as chat_models, model as model_models, model_config as model_config_models, training as training_models
 from app.utils.auth import create_admin_user  # 管理员初始化工具
 from app.api.model_config import init_default_model_configs  # 默认模型配置初始化
 from app.schemas.common import ErrorResponse, ErrorDetail  # 统一错误响应模型
@@ -39,15 +41,52 @@ logging.basicConfig(
 # logger：本模块专用日志记录器
 logger = logging.getLogger(__name__)
 
+# lifespan：应用生命周期管理（新版写法）
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理
+    
+    作用：
+    - 在应用启动时创建数据库表、初始化默认数据
+    - 在应用关闭时执行清理操作
+    
+    触发：
+    - FastAPI 启动/关闭时自动调用
+    """
+    # 启动时执行
+    logger.info("应用启动中...")
+    
+    # 创建所有表（如果不存在）
+    from app.database import Base
+    Base.metadata.create_all(bind=engine)
+    logger.info("数据库表结构已创建或已存在")
+    
+    # 初始化默认数据
+    db = SessionLocal()
+    try:
+        create_admin_user(db)  # 确保默认管理员账号存在
+        await init_default_model_configs(db)  # 初始化默认模型配置
+    finally:
+        db.close()
+    
+    logger.info("应用启动完成")
+    
+    yield  # 应用运行期间
+    
+    # 关闭时执行（可选）
+    logger.info("应用关闭中...")
+
 # app：FastAPI 应用实例
 # 作用：
 # - 承载路由、依赖、中间件与异常处理，生成 OpenAPI 文档。
 # 参数：
 # - title/description/version：用于 OpenAPI 文档展示。
+# - lifespan：生命周期管理器
 app = FastAPI(
     title="企业模型训练平台",
     description="基于FastAPI的模型训练和测试平台",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS 跨域中间件设置
@@ -182,35 +221,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         )
     )
     return JSONResponse(status_code=500, content=payload.model_dump())
-
-# 提示：数据库表结构由 Alembic 迁移管理，不在运行期自动创建
-
-# 初始化管理员账号和默认模型配置
-@app.on_event("startup")
-async def startup_event():
-    """应用启动事件钩子
-
-    作用（为什么存在）：
-    - 在应用启动阶段完成一次性初始化（创建默认管理员、初始化默认模型配置）。
-
-    触发链路（何时被调用）：
-    - FastAPI 启动时由事件系统调用（后续可迁移到 lifespan 以获得更清晰的生命周期管理）。
-
-    参数：
-    - 无（内部创建数据库会话）。
-
-    返回：
-    - 无（副作用：可能向数据库写入初始数据）。
-
-    注意：
-    - 确保会话创建与关闭对称，避免连接泄漏；初始化逻辑幂等。
-    """
-    db = SessionLocal()  # db：数据库会话（本函数内部创建与关闭）
-    try:
-        create_admin_user(db)  # 确保默认管理员账号存在
-        await init_default_model_configs(db)  # 初始化默认模型配置
-    finally:
-        db.close()  # 释放数据库会话
 
 # 路由注册
 # 作用：

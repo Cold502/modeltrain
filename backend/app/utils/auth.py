@@ -1,4 +1,4 @@
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.orm import Session
 from app.models.user import User
 from fastapi import Depends, HTTPException, status
@@ -24,17 +24,25 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    """验证密码"""
-    return pwd_context.verify(plain_password, password_hash)
+    """验证密码 - 使用 bcrypt 5.x 新API"""
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'),
+            password_hash.encode('utf-8')
+        )
+    except Exception as e:
+        logger.error(f"密码验证失败: {e}")
+        return False
 
 def get_password_hash(password: str) -> str:
-    """生成密码哈希"""
-    return pwd_context.hash(password)
+    """生成密码哈希 - 使用 bcrypt 5.x 新API"""
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """创建访问令牌"""
