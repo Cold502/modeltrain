@@ -5,7 +5,7 @@
 > 文档正在分段更新。每个章节都会同步校对代码仓库中的实现，保证描述与实际行为一致。历史内容如果尚未覆盖，请暂时参考旧版说明。
 
 ## 功能概览（已核对代码）
-
+ 
 - **账号体系**：邮箱/昵称注册、密码登录、Token 刷新与登出（Refresh Token 通过 HttpOnly Cookie 保存，`COOKIE_SECURE` 控制安全策略），管理员角色支持用户管理和统计汇总，并基于 JWT（详见 `backend/app/api/auth.py`、`backend/app/utils/auth.py`、`backend/app/api/admin.py`），支持刷新令牌 Cookie 自动续期。
 - **前端认证**：Axios 拦截器与 Token 管理统一封装在 `frontend/src/utils/api.js`、`frontend/src/utils/tokenManager.js`，处理 401 重试、失败队列回放与 SSE 流式请求（含刷新重试、`processSSEResponse` 增量解码），`tokenManager.js` 还提供 `authenticatedFetch` 封装；`frontend/src/views/Login.vue`、`frontend/src/views/Register.vue`、`frontend/src/views/ResetPassword.vue` 提供登录/注册/找回密码表单，默认展示管理员账号提示，并在提交前清理旧凭证、表单校验通过后延迟导航反馈。
 - **模型配置中心**：统一维护不同提供商的接入信息，可从 API 拉取模型列表，并保存为可复用的配置模板（系统启动时会注入一批禁用状态的默认模板；接口提供刷新模型、预置 `debug_refresh.log` 调试），详见 `backend/app/api/model_config.py`。
