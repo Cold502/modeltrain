@@ -4,7 +4,8 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # 数据库配置
-DATABASE_URL = "sqlite:///./modeltrain.db"
+# 替换为你项目中 modeltrain.db 的实际绝对路径（示例路径需根据项目实际位置调整）
+DATABASE_URL = "sqlite:///D:/LWJ/modeltrain/modeltrain.db"
 
 engine = create_engine(
     DATABASE_URL, 

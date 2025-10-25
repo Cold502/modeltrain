@@ -4,7 +4,7 @@ from app.database import SessionLocal
 import logging
 
 logger = logging.getLogger(__name__)
-from app.schemas.user import UserRegister, UserLogin, PasswordReset, UserResponse, LoginResponse
+from backend.app.schemas.user import UserRegister, UserLogin, PasswordReset, UserResponse, LoginResponse
 from app.schemas.common import ErrorResponse
 from app.utils.auth import (
     authenticate_user, 
