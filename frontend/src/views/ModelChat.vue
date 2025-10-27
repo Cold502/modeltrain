@@ -595,7 +595,7 @@ const handleStreamingResponse = async (requestData, sessionId, onCompleteCallbac
       // onComplete回调：流式传输完成时
       (finalContent) => {
         // 只有当前显示的会话是原始会话时才更新UI
-        if (currentSession.value.id === originalSessionId) {
+        if (currentSession.value.id === sessionId) {
           const messageIndex = currentSession.value.messages.length - 1;
           if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
             const currentMessage = currentSession.value.messages[messageIndex];
@@ -749,25 +749,8 @@ const sendMessage = async () => {
     while (retryCount < maxRetries) {
       try {
         if (isStreaming.value) {
-          await handleStreamingResponse(requestData, originalSessionId, async (finalContent) => {
-            const contentToSave = finalContent || '';
-            // 保存流式完成后的AI回复到后端（容错两次）
-            let tries = 0;
-            while (tries < 2) {
-              try {
-                await chatAPI.sendMessage({
-                  session_id: originalSessionId,
-                  content: contentToSave,
-                  role: 'assistant',
-                  model_name: selectedModel.value || 'unknown'
-                });
-                break;
-              } catch (e) {
-                tries++;
-                if (tries >= 2) break;
-                await new Promise(r => setTimeout(r, 800));
-              }
-            }
+          await handleStreamingResponse(requestData, originalSessionId, (finalContent) => {
+            originalResponseContent = finalContent || '';
           });
           // 获取流式响应的最终内容（用于本地变量）
           const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
@@ -862,20 +845,6 @@ const sendMessage = async () => {
       }
 
       // 保存用户消息（使用原始会话ID）
-      console.log('💾 保存用户消息到数据库:', {
-        session_id: originalSessionId,
-        content: userMessageContent,
-        role: 'user',
-        model_name: selectedModel.value || 'unknown'
-      });
-      const userMessageResponse = await chatAPI.sendMessage({
-        session_id: originalSessionId,
-        content: userMessageContent,
-        role: 'user',
-        model_name: selectedModel.value || 'unknown'
-      });
-      console.log('✅ 用户消息保存响应:', userMessageResponse);
-
       // 保存AI回复（使用原始内容和原始会话ID）
       if (originalResponseContent) {
         console.log('💾 保存AI回复到数据库:', {

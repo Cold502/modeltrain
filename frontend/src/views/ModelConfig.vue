@@ -523,6 +523,9 @@ export default {
           configId: modelConfigForm.id, 
           isEdit 
         })
+
+        // 所有必填项通过校验后自动标记为启用状态
+        modelConfigForm.status = isFormValid.value ? 1 : 0
         
         await store.dispatch('model/saveModelConfig', {
           config: { ...modelConfigForm },
