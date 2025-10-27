@@ -298,9 +298,12 @@ export default {
   border: none;
   height: calc(100% - 56px);
   background: transparent;
-  overflow-y: auto;
   padding: 8px 12px;
   transition: width 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-menu::-webkit-scrollbar {
@@ -354,6 +357,7 @@ export default {
 
 .sidebar-menu.el-menu--collapse {
   padding: 8px 12px;
+  width: 100%;
 }
 
 .sidebar-menu.el-menu--collapse .el-menu-item {
