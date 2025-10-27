@@ -1,10 +1,15 @@
 <template>
   <el-container class="app-layout">
-    <el-aside width="300px" class="sidebar">
-      <el-radio-group v-model="isCollapse" style="margin-bottom: 15px; padding: 10px;">
-        <el-radio-button :value="false">展开</el-radio-button>
-        <el-radio-button :value="true">折叠</el-radio-button>
-      </el-radio-group>
+    <el-aside :width="isCollapse ? '72px' : '200px'" class="sidebar" :class="{ 'is-collapse': isCollapse }">
+      <div class="sidebar-header" :class="{ 'is-collapse': isCollapse }">
+        <span v-if="!isCollapse" class="sidebar-title">导航</span>
+        <div class="collapse-toggle" @click="toggleSidebar">
+          <el-icon>
+            <Fold v-if="!isCollapse" />
+            <Expand v-else />
+          </el-icon>
+        </div>
+      </div>
 
       <el-menu
         :default-active="activeMenu"
@@ -130,7 +135,9 @@ import {
   ArrowDown,
   Coin,
   Moon,
-  Sunny
+  Sunny,
+  Fold,
+  Expand
 } from '@element-plus/icons-vue'
 
 export default {
@@ -146,7 +153,9 @@ export default {
     ArrowDown,
     Coin,
     Moon,
-    Sunny
+    Sunny,
+    Fold,
+    Expand
   },
   setup() {
     const store = useStore()
@@ -193,6 +202,10 @@ export default {
       store.dispatch('toggleDarkMode')
     }
 
+    const toggleSidebar = () => {
+      isCollapse.value = !isCollapse.value
+    }
+
     // 监听路由变化，更新菜单状态
     watch(route, (to) => {
       store.dispatch('setActiveMenu', to.path)
@@ -216,6 +229,7 @@ export default {
       handleCommand,
       handleMenuSelect,
       toggleDarkMode,
+      toggleSidebar,
       handleOpen,
       handleClose
     }
@@ -234,18 +248,63 @@ export default {
   border-right: 2px solid var(--light-blue);
   box-shadow: 2px 0 8px rgba(100, 168, 219, 0.1);
   overflow: hidden;
+  transition: width 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(100, 168, 219, 0.2);
+  gap: 12px;
+}
+
+.sidebar-header.is-collapse {
+  justify-content: center;
+}
+
+.sidebar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--dark-blue);
+}
+
+.collapse-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-color);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.collapse-toggle:hover {
+  background: var(--light-blue);
+  color: var(--dark-blue);
+}
+
+:deep(.collapse-toggle .el-icon) {
+  font-size: 18px;
 }
 
 .sidebar-menu {
   border: none;
-  height: calc(100% - 80px);
+  height: calc(100% - 56px);
   background: transparent;
   overflow-y: auto;
-  padding: 0.5rem;
+  padding: 8px 12px;
+  transition: width 0.2s ease;
 }
 
 .sidebar-menu::-webkit-scrollbar {
-  width: 4px;
+  width: 10px;
 }
 
 .sidebar-menu::-webkit-scrollbar-track {
@@ -254,15 +313,30 @@ export default {
 
 .sidebar-menu::-webkit-scrollbar-thumb {
   background: var(--medium-blue);
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 .sidebar-menu .el-menu-item {
-  margin: 0.3rem 0;
-  border-radius: 8px;
+  margin: 4px 0;
+  border-radius: 10px;
   background: transparent;
   color: var(--text-color);
   border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  height: 48px;
+  transition: transform 0.2s ease;
+}
+
+:deep(.sidebar-menu .el-menu-item .el-icon) {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
 }
 
 .sidebar-menu .el-menu-item:hover {
@@ -278,10 +352,32 @@ export default {
   border-color: var(--dark-blue);
 }
 
-/* 可折叠菜单样式 */
-.el-menu-vertical-demo:not(.el-menu--collapse) {
-  width: 200px;
-  min-height: 400px;
+.sidebar-menu.el-menu--collapse {
+  padding: 8px 12px;
+}
+
+.sidebar-menu.el-menu--collapse .el-menu-item {
+  width: 48px;
+  padding: 0;
+  margin: 6px auto;
+  justify-content: center;
+  transform: none;
+}
+
+.sidebar-menu.el-menu--collapse .el-menu-item:hover {
+  transform: none;
+}
+
+:deep(.el-menu-tooltip__trigger) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+}
+
+:deep(.el-menu-tooltip__trigger .el-icon) {
+  margin: 0;
 }
 
 .header {
