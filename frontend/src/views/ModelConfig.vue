@@ -1,4 +1,4 @@
-<template>
+ <template>
   <div class="model-config-container">
     <!-- 页面头部 -->
     <el-card class="header-card">

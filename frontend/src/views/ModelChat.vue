@@ -235,6 +235,9 @@ export default {
     const sending = ref(false)
     const messageList = ref(null)
 
+    // 跟踪正在进行的流式响应
+    const activeStreamingMessages = new Map() // sessionId -> { messageId, content, isStreaming }
+
     const userName = computed(() => store.getters.userName)
     const userAvatar = computed(() => {
       // 使用本地默认头像，避免外部服务不稳定的问题
@@ -364,16 +367,7 @@ export default {
 
     const selectSession = async (session) => {
       try {
-        // 检查是否有正在进行的流式处理
-        if (currentSession.value && currentSession.value.messages) {
-          const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
-          if (lastMessage && lastMessage.isStreaming) {
-            console.warn('⚠️ 有正在进行的流式处理，请等待完成后再切换会话');
-            return;
-          }
-        }
-        
-        const response = await chatAPI.getSession(session.id)
+    const response = await chatAPI.getSession(session.id)
         console.log('🔍 获取会话详情响应:', response)
         console.log('🔍 响应数据结构:', {
           hasData: !!response.data,
@@ -400,11 +394,25 @@ export default {
 
         // 为历史消息解析思维过程
         sessionDetail.messages = sessionDetail.messages.map(message => {
-          if (message.role === 'assistant' && message.content) {
-            return enrichMessageWithThinking(message, message.content);
+          return {
+            ...message,
+            isStreaming: false
           }
-          return message;
         });
+
+        // 检查是否有正在进行的流式响应
+        const streamingInfo = activeStreamingMessages.get(session.id);
+        if (streamingInfo) {
+          // 检查消息列表中是否已经有这条消息
+          const existingIndex = sessionDetail.messages.findIndex(
+            msg => msg.id === streamingInfo.messageId
+          );
+          if (existingIndex === -1) {
+            // 如果消息不在列表中，添加它（保持流式状态）
+            sessionDetail.messages.push(streamingInfo.message);
+            console.log('🔄 恢复正在进行的流式响应:', streamingInfo.messageId);
+          }
+        }
 
         currentSession.value = sessionDetail
 
@@ -545,9 +553,10 @@ export default {
 
     // 处理流式响应
 const handleStreamingResponse = async (requestData, sessionId, onCompleteCallback) => {
-  // 创建空的助手消息
+  // 创建空的助手消息，使用时间戳+随机数确保唯一性
+  const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const assistantMessage = {
-    id: `assistant-${Date.now()}`,
+    id: assistantMessageId,
     role: 'assistant',
     content: '',
     isStreaming: true,
@@ -560,6 +569,17 @@ const handleStreamingResponse = async (requestData, sessionId, onCompleteCallbac
   currentSession.value.messages.push(assistantMessage);
   scrollToBottom();
 
+  // 记录正在进行的流式响应
+  activeStreamingMessages.set(sessionId, {
+    messageId: assistantMessageId,
+    message: assistantMessage
+  });
+
+  // 用于查找消息的辅助函数
+  const findMessageById = (messages, id) => {
+    return messages.findIndex(msg => msg.id === id);
+  };
+
   try {
     // 使用新的SSE流式处理函数
     await createSSEStream(
@@ -567,16 +587,23 @@ const handleStreamingResponse = async (requestData, sessionId, onCompleteCallbac
       requestData,
       // onChunk回调：每次收到新内容时更新消息
       (currentContent) => {
+        // 实时解析思维过程
+        const parsed = parseThinkingContent(currentContent);
+        const hasThinkStart = currentContent.includes('<think>');
+        
+        // 更新activeStreamingMessages中的内容
+        const streamingInfo = activeStreamingMessages.get(sessionId);
+        if (streamingInfo) {
+          streamingInfo.message.content = parsed.content;
+          streamingInfo.message.thinking = parsed.thinking;
+          streamingInfo.message.showThinking = hasThinkStart;
+        }
+        
         // 只有当前显示的会话是原始会话时才更新UI
         if (currentSession.value.id === sessionId) {
-          const messageIndex = currentSession.value.messages.length - 1;
-          if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
-            // 实时解析思维过程，即使在流式过程中
-            const parsed = parseThinkingContent(currentContent);
-            
-            // 如果检测到思维过程开始，立即显示思维过程区域
-            const hasThinkStart = currentContent.includes('<think>');
-            
+          // 通过ID查找消息，而不是使用索引
+          const messageIndex = findMessageById(currentSession.value.messages, assistantMessageId);
+          if (messageIndex !== -1 && currentSession.value.messages[messageIndex]) {
             // 确保消息对象存在再更新
             const currentMessage = currentSession.value.messages[messageIndex];
             if (currentMessage) {
@@ -594,10 +621,14 @@ const handleStreamingResponse = async (requestData, sessionId, onCompleteCallbac
       },
       // onComplete回调：流式传输完成时
       (finalContent) => {
+        // 清除流式状态记录
+        activeStreamingMessages.delete(sessionId);
+        
         // 只有当前显示的会话是原始会话时才更新UI
         if (currentSession.value.id === sessionId) {
-          const messageIndex = currentSession.value.messages.length - 1;
-          if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
+          // 通过ID查找消息
+          const messageIndex = findMessageById(currentSession.value.messages, assistantMessageId);
+          if (messageIndex !== -1 && currentSession.value.messages[messageIndex]) {
             const currentMessage = currentSession.value.messages[messageIndex];
             if (currentMessage) {
               currentSession.value.messages[messageIndex] = { ...currentMessage, isStreaming: false };
@@ -613,8 +644,12 @@ const handleStreamingResponse = async (requestData, sessionId, onCompleteCallbac
       // onError回调：发生错误时
       (error) => {
         console.error('流式处理错误:', error);
-        const messageIndex = currentSession.value.messages.length - 1;
-        if (messageIndex >= 0 && currentSession.value.messages[messageIndex]) {
+        // 清除流式状态记录
+        activeStreamingMessages.delete(sessionId);
+        
+        // 通过ID查找消息
+        const messageIndex = findMessageById(currentSession.value.messages, assistantMessageId);
+        if (messageIndex !== -1 && currentSession.value.messages[messageIndex]) {
           const currentMessage = currentSession.value.messages[messageIndex];
           if (currentMessage) {
             currentSession.value.messages[messageIndex] = {
@@ -630,6 +665,8 @@ const handleStreamingResponse = async (requestData, sessionId, onCompleteCallbac
 
   } catch (error) {
     console.error('流式请求处理失败:', error);
+    // 清除流式状态记录
+    activeStreamingMessages.delete(sessionId);
 
     // 移除正在流式传输的消息
     if (currentSession.value && currentSession.value.messages) {
@@ -675,7 +712,8 @@ const sendMessage = async () => {
     id: `user-${Date.now()}`,
     role: 'user',
     content: userMessageContent,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
+    requestId: crypto.randomUUID ? crypto.randomUUID() : `req-${Date.now()}`
   };
 
   if (!currentSession.value.messages) {
@@ -698,12 +736,14 @@ const sendMessage = async () => {
       await loadSessions(); // 刷新侧边栏列表
     }
 
-    await chatAPI.sendMessage({
+    const savedUserMessage = await chatAPI.sendMessage({
       session_id: originalSessionId,
       content: userMessageContent,
       role: 'user',
       model_name: selectedModel.value || 'unknown'
     });
+    // 更新用户消息 ID，便于后续定位
+    userMessage.id = savedUserMessage.data.id;
   } catch (error) {
     console.error('保存用户消息失败:', error);
     ElMessage.error('无法保存您的消息，请检查网络连接');
@@ -822,34 +862,13 @@ const sendMessage = async () => {
       }
     }
 
-    // 保存会话和消息记录到后端
+    // 保存AI回复到数据库
     try {
-      if (!currentSession.value.id) {
-        // 创建新会话
-        const title = userMessageContent.length > 20
-          ? userMessageContent.substring(0, 20) + '...'
-          : userMessageContent;
-
-        const sessionResponse = await chatAPI.createSession({
-          title: title
-        });
-
-        // 更新当前会话信息
-        currentSession.value.id = sessionResponse.data.id;
-        currentSession.value.title = title;
-        currentSession.value.created_at = sessionResponse.data.created_at;
-        currentSession.value.updated_at = sessionResponse.data.updated_at;
-
-        // 重新加载会话列表
-        await loadSessions();
-      }
-
-      // 保存用户消息（使用原始会话ID）
-      // 保存AI回复（使用原始内容和原始会话ID）
+      // 保存AI回复（使用原始会话ID）
       if (originalResponseContent) {
         console.log('💾 保存AI回复到数据库:', {
           session_id: originalSessionId,
-          content: originalResponseContent,
+          content_length: originalResponseContent.length,
           role: 'assistant',
           model_name: selectedModel.value || 'unknown'
         });
@@ -859,7 +878,10 @@ const sendMessage = async () => {
           role: 'assistant',
           model_name: selectedModel.value || 'unknown'
         });
-        console.log('✅ AI回复保存响应:', aiMessageResponse);
+        console.log('✅ AI回复保存成功, 消息ID:', aiMessageResponse.data?.id);
+        
+        // 刷新会话列表（更新时间戳）
+        await loadSessions();
       } else {
         console.log('⚠️ 没有AI回复内容需要保存');
       }
@@ -1213,22 +1235,28 @@ const sendMessage = async () => {
 }
 
 .message-text {
-  padding: 5px 16px;
+  padding: 2px 16px;
   border-radius: 16px;
   background: var(--bg-color);
   border: 1px solid var(--border-color);
   color: var(--text-color);
   line-height: 1.5;
   word-wrap: break-word;
-  white-space: pre-wrap; /* 保留空白字符和换行符 */
+  white-space: normal;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   min-height: 20px;
+  min-width: 120px;
+}
+
+.message-text :deep(p) {
+  margin: 0.5em;
 }
 
 /* 空消息或流式消息的处理 */
 .message-text:empty,
 .message-text:has(*:empty) {
-  min-height: 40px;
+  min-height: 48px;
+  min-width: 120px;
   position: relative;
   display: flex;
   align-items: center;
@@ -1248,7 +1276,8 @@ const sendMessage = async () => {
 
 /* 空的流式消息样式 */
 .message-text.streaming-empty {
-  min-height: 40px;
+  min-height: 48px;
+  min-width: 120px;
   display: flex;
   justify-content: center;
   align-items: center;

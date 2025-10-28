@@ -161,3 +161,35 @@ URL构建详情:
   是否以/v1结尾: True
   最终URL: 'https://api.deepseek.com/v1/models'
 fetch_models_from_api 返回了 2 个模型
+
+=== 刷新模型请求 2025-10-28 08:59:32.527046 ===
+endpoint: 'http://192.168.2.151:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.151:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.151:9000/v1/'
+  清理后endpoint: 'http://192.168.2.151:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.151:9000/v1/models'
+
+=== 刷新模型请求 2025-10-28 08:59:58.879308 ===
+endpoint: 'http://192.168.2.151:9000/v1/'
+provider_id: 'vllm'
+api_key: ***
+endpoint类型: <class 'str'>
+endpoint长度: 29
+进入try块，准备处理请求...
+开始调用 fetch_models_from_api...
+fetch_models_from_api 函数开始执行
+  参数: endpoint='http://192.168.2.151:9000/v1/', provider_id='vllm'
+URL构建详情:
+  原始endpoint: 'http://192.168.2.151:9000/v1/'
+  清理后endpoint: 'http://192.168.2.151:9000/v1'
+  是否以/v1结尾: True
+  最终URL: 'http://192.168.2.151:9000/v1/models'
