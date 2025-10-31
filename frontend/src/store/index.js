@@ -141,10 +141,11 @@ export default createStore({
     },
     
     toggleDarkMode({ commit, state }) {
+      // 切换模式：true → false 或 false → true
       commit('SET_DARK_MODE', !state.isDarkMode)
     }
   },
-  
+  // Getter：获取当前模式
   getters: {
     isAdmin: state => state.user && state.user.is_admin,
     userName: state => state.user ? state.user.nickname : '',
