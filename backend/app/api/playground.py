@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 import logging
+from typing import List
 
 from app.database import get_db
 from app.models.model_config import ModelConfig as ModelConfigModel
+from app.models.prompt import TestPrompt
 from app.llm_core.llm_client import LLMClient
 from app.schemas.common import ErrorResponse
+from app.schemas.prompt import TestPromptCreate, TestPromptUpdate, TestPromptResponse
 from app.utils.auth import get_current_user
 from app.models.user import User
 
@@ -168,3 +172,111 @@ async def playground_chat_stream(
             "Access-Control-Allow-Headers": "*",
         }
     ) 
+
+
+# =====================
+# 测试提示语（问题模板）管理
+# =====================
+
+@router.get(
+    "/playground/prompts",
+    response_model=List[TestPromptResponse],
+    responses={401: {"model": ErrorResponse}}
+)
+async def list_test_prompts(
+    keyword: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """获取当前用户可见的问题模板列表（含自己创建与公共模板）。"""
+    query = db.query(TestPrompt).filter(
+        or_(
+            TestPrompt.created_by == current_user.id,
+            TestPrompt.created_by.is_(None)
+        )
+    )
+
+    if keyword:
+        like_pattern = f"%{keyword}%"
+        query = query.filter(
+            or_(
+                TestPrompt.title.ilike(like_pattern),
+                TestPrompt.content.ilike(like_pattern)
+            )
+        )
+
+    prompts = query.order_by(TestPrompt.created_at.desc()).all()
+    return prompts
+
+
+@router.post(
+    "/playground/prompts",
+    response_model=TestPromptResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={401: {"model": ErrorResponse}}
+)
+async def create_test_prompt(
+    payload: TestPromptCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """创建新的问题模板，归属当前用户。"""
+    prompt = TestPrompt(
+        title=payload.title.strip(),
+        content=payload.content.strip(),
+        created_by=current_user.id
+    )
+    db.add(prompt)
+    db.commit()
+    db.refresh(prompt)
+    return prompt
+
+
+def _get_owned_prompt(db: Session, prompt_id: int, user_id: int) -> TestPrompt:
+    prompt = db.query(TestPrompt).filter(TestPrompt.id == prompt_id).first()
+    if not prompt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="话术不存在")
+    if prompt.created_by is not None and prompt.created_by != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作该话术")
+    return prompt
+
+
+@router.put(
+    "/playground/prompts/{prompt_id}",
+    response_model=TestPromptResponse,
+    responses={401: {"model": ErrorResponse}}
+)
+async def update_test_prompt(
+    prompt_id: int,
+    payload: TestPromptUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """更新指定问题模板（仅限当前用户自建模板）。"""
+    prompt = _get_owned_prompt(db, prompt_id, current_user.id)
+
+    if payload.title is not None:
+        prompt.title = payload.title.strip()
+    if payload.content is not None:
+        prompt.content = payload.content.strip()
+
+    db.commit()
+    db.refresh(prompt)
+    return prompt
+
+
+@router.delete(
+    "/playground/prompts/{prompt_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={401: {"model": ErrorResponse}}
+)
+async def delete_test_prompt(
+    prompt_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """删除指定问题模板（仅限当前用户自建模板）。"""
+    prompt = _get_owned_prompt(db, prompt_id, current_user.id)
+    db.delete(prompt)
+    db.commit()
+    return None

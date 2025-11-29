@@ -7,6 +7,7 @@ import os  # 读取环境变量
 import logging  # 统一日志接口
 from dotenv import load_dotenv  # 读取 .env 文件中的环境变量
 from contextlib import asynccontextmanager  # 用于新版 lifespan
+import subprocess  # 启动子进程（如 LLaMA-Factory）
 
 from app.database import SessionLocal, engine, get_db  # 数据库会话工厂与依赖
 from app.api import auth, chat, model, training, admin, model_config, playground  # 各业务路由模块
@@ -55,12 +56,27 @@ async def lifespan(app: FastAPI):
     """
     # 启动时执行
     logger.info("应用启动中...")
-    
+
+    # 启动 LLaMA-Factory Web UI（端口 7860）
+    llamafactory_proc = None
+    try:
+        logger.info("尝试启动 LLaMA-Factory Web UI（llamafactory-cli webui --port 7860）...")
+        llamafactory_proc = subprocess.Popen(
+            ["llamafactory-cli", "webui", "--port", "7860"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        logger.info("LLaMA-Factory Web UI 子进程已启动，PID=%s", llamafactory_proc.pid)
+    except FileNotFoundError:
+        logger.error("无法找到 'llamafactory-cli' 命令，请确认 LLaMA-Factory 已正确安装到当前环境中。")
+    except Exception as e:
+        logger.error("启动 LLaMA-Factory Web UI 失败: %s", e)
+
     # 创建所有表（如果不存在）
     from app.database import Base
     Base.metadata.create_all(bind=engine)
     logger.info("数据库表结构已创建或已存在")
-    
+
     # 初始化默认数据
     db = SessionLocal()
     try:
@@ -68,13 +84,23 @@ async def lifespan(app: FastAPI):
         await init_default_model_configs(db)  # 初始化默认模型配置
     finally:
         db.close()
-    
+
     logger.info("应用启动完成")
     
     yield  # 应用运行期间
     
     # 关闭时执行（可选）
     logger.info("应用关闭中...")
+
+    # 关闭 LLaMA-Factory 子进程（如果有）
+    if llamafactory_proc is not None:
+        try:
+            logger.info("尝试关闭 LLaMA-Factory Web UI 子进程（PID=%s）...", llamafactory_proc.pid)
+            llamafactory_proc.terminate()
+            llamafactory_proc.wait(timeout=10)
+            logger.info("LLaMA-Factory Web UI 子进程已正常退出。")
+        except Exception as e:
+            logger.error("关闭 LLaMA-Factory Web UI 子进程失败: %s", e)
 
 # app：FastAPI 应用实例
 # 作用：

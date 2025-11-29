@@ -5,8 +5,18 @@ import router from '../router'
 import { getAccessToken, handle401Error, getAuthHeaders } from './tokenManager'
 import { log, logSafe, error as logError } from './logger'
 
-// 读取环境变量中的 API 基地址，默认为 '/api'
-const apiBaseURL = import.meta.env?.VITE_API_BASE_URL || '/api'
+// 读取环境变量中的 API 基地址，默认为 '/api'。
+// 当处于 Vite dev server（常用 3000 端口）且未手动配置时，自动回退到后端服务 8000 端口，避免代理失效导致 404。
+const inferDevApiBase = () => {
+  if (typeof window === 'undefined') return '/api'
+  const { hostname, port } = window.location
+  if (port === '3000' || port === '5173') {
+    return `http://127.0.0.1:8000/api`
+  }
+  return '/api'
+}
+
+const apiBaseURL = (import.meta.env?.VITE_API_BASE_URL?.trim()) || inferDevApiBase()
 
 // 创建axios实例
 const api = axios.create({
