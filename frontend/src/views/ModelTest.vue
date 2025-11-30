@@ -221,30 +221,55 @@
           <el-popover
             v-model:visible="questionPopoverVisible"
             placement="top-start"
-            width="360"
+            width="420"
             trigger="click"
             popper-class="question-popover"
           >
             <div class="question-popover-header">
               <el-input
                 v-model="questionSearch"
-                placeholder="搜索话术..."
+                placeholder="搜索问题..."
                 size="small"
                 clearable
+                style="width: 180px;"
+                @keyup.enter="handleSearch"
               />
+              <el-button size="small" @click="handleSearch" icon="Search">搜索</el-button>
               <el-button type="primary" size="small" @click.stop="openQuestionEditor()">新增</el-button>
+              <el-button 
+                v-if="!isManageMode" 
+                size="small" 
+                @click.stop="enterManageMode"
+              >管理</el-button>
+              <template v-else>
+                <el-button 
+                  type="danger" 
+                  size="small" 
+                  :disabled="selectedQuestions.length === 0"
+                  @click.stop="batchDeleteQuestions"
+                >删除({{ selectedQuestions.length }})</el-button>
+                <el-button size="small" @click.stop="exitManageMode">退出</el-button>
+              </template>
             </div>
             <el-scrollbar class="question-popover-list">
               <div v-if="filteredQuestions.length === 0" class="question-empty">
-                <el-empty description="暂无话术" :image-size="60" />
+                <el-empty description="暂无问题" :image-size="60" />
               </div>
               <div v-else>
                 <div
                   v-for="question in filteredQuestions"
                   :key="question.id"
                   class="question-item"
+                  :class="{ 'is-selected': selectedQuestions.includes(question.id) }"
                 >
-                  <div class="question-item-main" @click="useQuestion(question)">
+                  <el-checkbox 
+                    v-if="isManageMode && question.created_by" 
+                    v-model="selectedQuestions" 
+                    :label="question.id"
+                    @click.stop
+                    class="question-checkbox"
+                  />
+                  <div class="question-item-main" @click="isManageMode ? toggleQuestionSelection(question) : useQuestion(question)">
                     <div class="question-item-header">
                       <h4>{{ question.title }}</h4>
                       <el-tag size="small" :type="question.created_by ? 'primary' : 'info'">
@@ -253,7 +278,7 @@
                     </div>
                     <p>{{ question.content }}</p>
                   </div>
-                  <div class="question-item-actions" v-if="question.created_by">
+                  <div class="question-item-actions" v-if="!isManageMode && question.created_by">
                     <el-button text type="primary" size="small" @click.stop="openQuestionEditor(question)">编辑</el-button>
                     <el-button text type="danger" size="small" @click.stop="deleteQuestion(question)">删除</el-button>
                   </div>
@@ -292,16 +317,16 @@
       </div>
     </div>
 
-    <!-- 新增/编辑话术弹窗 -->
+    <!-- 新增/编辑问题弹窗 -->
     <el-dialog
       v-model="questionEditorVisible"
-      :title="editingQuestion ? '编辑话术' : '新增话术'"
+      :title="editingQuestion ? '编辑问题' : '新增问题'"
       width="500px"
       :close-on-click-modal="false"
     >
       <el-form :model="questionForm" label-width="64px">
         <el-form-item label="标题">
-          <el-input v-model="questionForm.title" placeholder="给这个话术起个名字" />
+          <el-input v-model="questionForm.title" placeholder="给这个问题起个名字" />
         </el-form-item>
         <el-form-item label="内容">
           <el-input
@@ -358,6 +383,8 @@ export default {
     const editingQuestion = ref(null)
     const questionLoading = ref(false)
     const questionSaving = ref(false)
+    const isManageMode = ref(false)
+    const selectedQuestions = ref([])
     let questionSearchTimer = null
 
     // 获取话术列表
@@ -770,7 +797,61 @@ export default {
       }
 
       questionPopoverVisible.value = false
-      ElMessage.success('已插入话术')
+      ElMessage.success('已插入问题')
+    }
+
+    const handleSearch = () => {
+      fetchQuestions()
+    }
+
+    const enterManageMode = () => {
+      isManageMode.value = true
+      selectedQuestions.value = []
+    }
+
+    const exitManageMode = () => {
+      isManageMode.value = false
+      selectedQuestions.value = []
+    }
+
+    const toggleQuestionSelection = (question) => {
+      if (!question.created_by) return // 系统问题不可选
+      
+      const index = selectedQuestions.value.indexOf(question.id)
+      if (index > -1) {
+        selectedQuestions.value.splice(index, 1)
+      } else {
+        selectedQuestions.value.push(question.id)
+      }
+    }
+
+    const batchDeleteQuestions = async () => {
+      if (selectedQuestions.value.length === 0) return
+      
+      try {
+        await ElMessageBox.confirm(
+          `确认删除选中的 ${selectedQuestions.value.length} 个问题吗？`,
+          '批量删除确认',
+          {
+            confirmButtonText: '删除',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        
+        // 批量删除
+        await Promise.all(
+          selectedQuestions.value.map(id => api.delete(`/playground/prompts/${id}`))
+        )
+        
+        ElMessage.success(`已删除 ${selectedQuestions.value.length} 个问题`)
+        selectedQuestions.value = []
+        await fetchQuestions()
+      } catch (error) {
+        if (error === 'cancel') return
+        console.error('批量删除失败:', error)
+        ElMessage.error('批量删除失败')
+      }
     }
 
     const focusModelSelect = () => {
@@ -834,10 +915,17 @@ export default {
       questionForm,
       editingQuestion,
       filteredQuestions,
+      isManageMode,
+      selectedQuestions,
       openQuestionEditor,
       saveQuestion,
       deleteQuestion,
       useQuestion,
+      handleSearch,
+      enterManageMode,
+      exitManageMode,
+      toggleQuestionSelection,
+      batchDeleteQuestions,
       getModelName,
       beforeImageUpload,
       removeImage,
@@ -1127,37 +1215,6 @@ export default {
   background: var(--el-color-primary);
   border-color: var(--el-color-primary);
   color: #fff;
-}
-
-:global(.dark-mode) .model-test-container .reset-button {
-  background: #2a2f37;
-  border-color: #3a404c;
-  color: #e6e9ef;
-}
-
-:global(.dark-mode) .model-test-container .reset-button:hover {
-  background: #323845;
-  border-color: #4a5262;
-}
-
-:global(.dark-mode) .model-test-container .manage-button {
-  background: rgba(58, 122, 254, 0.18);
-  border-color: rgba(58, 122, 254, 0.45);
-  color: #a7c8ff;
-}
-
-:global(.dark-mode) .model-test-container .manage-button:hover {
-  background: rgba(58, 122, 254, 0.26);
-  border-color: rgba(58, 122, 254, 0.6);
-}
-
-:global(.dark-mode) .model-test-container .send-button {
-  background: var(--el-color-primary);
-  border-color: var(--el-color-primary);
-  color: #fff;
-}
-
-.send-button {
   font-weight: 500;
 }
 
@@ -1224,6 +1281,9 @@ export default {
   background: #f8fbff;
   margin-bottom: 8px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .question-item:hover {
@@ -1233,6 +1293,14 @@ export default {
 
 .question-item-main {
   cursor: pointer;
+  flex: 1;
+}
+
+.question-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
 }
 
 .question-item-main h4 {
@@ -1254,124 +1322,298 @@ export default {
   margin-top: 6px;
 }
 
+.question-checkbox {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.question-item.is-selected {
+  border-color: #a9c7fb;
+  background: #f0f6ff;
+}
+
 .question-empty {
   padding: 24px 0;
 }
 
-:global(.dark-mode) .model-test-container {
+</style>
+
+<style>
+/* 暗色模式全局样式（非 scoped） */
+.dark-mode .model-test-container {
   background: #0d111c;
   color: #e4e9f5;
 }
 
-:global(.dark-mode) .model-test-container .header,
-:global(.dark-mode) .model-test-container .input-area {
+.dark-mode .model-test-container .header,
+.dark-mode .model-test-container .input-area {
   background: transparent;
   border-color: #1f2533;
 }
 
-:global(.dark-mode) .model-test-container .unified-card,
-:global(.dark-mode) .model-test-container .model-column-card,
-:global(.dark-mode) .model-test-container .model-chat-card {
+.dark-mode .model-test-container .unified-card,
+.dark-mode .model-test-container .model-column-card,
+.dark-mode .model-test-container .model-chat-card {
   background: #151b2c !important;
   border-color: #242c3f !important;
   box-shadow: none;
 }
 
-:global(.dark-mode) .model-test-container .model-column {
+.dark-mode .model-test-container .model-column {
   background: transparent;
 }
 
-:global(.dark-mode) .model-test-container .chat-messages {
+.dark-mode .model-test-container .chat-messages {
   background: #111623;
   border-radius: 12px;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced {
+.dark-mode .model-test-container .empty-chat.enhanced {
   background: linear-gradient(135deg, rgba(23, 32, 48, 0.9) 0%, rgba(18, 26, 40, 0.95) 100%) !important;
   border-color: #23304a !important;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-guidance h3 {
+.dark-mode .model-test-container .empty-chat.enhanced .empty-guidance h3 {
   color: #f4f7ff !important;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-guidance p,
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-step p,
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-step h4,
-:global(.dark-mode) .model-test-container .model-header-tip {
+.dark-mode .model-test-container .empty-chat.enhanced .empty-guidance p,
+.dark-mode .model-test-container .empty-chat.enhanced .empty-step p,
+.dark-mode .model-test-container .empty-chat.enhanced .empty-step h4,
+.dark-mode .model-test-container .model-header-tip {
   color: #c0cae5 !important;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-step {
+.dark-mode .model-test-container .empty-chat.enhanced .empty-step {
   background: #1b2233 !important;
   border-color: #242f49 !important;
   box-shadow: none !important;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-step:hover {
+.dark-mode .model-test-container .empty-chat.enhanced .empty-step:hover {
   transform: translateY(-2px);
   border-color: #2f3d5f !important;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .step-index {
+.dark-mode .model-test-container .empty-chat.enhanced .step-index {
   background: #4a7afe !important;
   color: #fff !important;
 }
 
-:global(.dark-mode) .model-test-container .empty-chat.enhanced .empty-icon {
+.dark-mode .model-test-container .empty-chat.enhanced .empty-icon {
   color: #6fa0ff !important;
 }
 
-:global(.dark-mode) .model-test-container .input-bar-textarea :deep(.el-textarea__inner) {
+.dark-mode .model-test-container .input-bar-textarea .el-textarea__inner {
   background: #111723;
   border-color: #262f43;
   color: #f2f6ff;
 }
 
-:global(.dark-mode) .model-test-container .input-bar-actions {
+.dark-mode .model-test-container .input-bar-actions {
   border-color: transparent;
 }
 
-:global(.dark-mode) .model-test-container .question-popover-header .el-input :deep(.el-input__wrapper) {
-  background: #0f1522;
-  border-color: #273554;
-}
-
-:global(.dark-mode) .model-test-container .question-item {
-  background: #141a2a;
-  border-color: #252f48;
-}
-
-:global(.dark-mode) .model-test-container .question-item:hover {
-  border-color: #37507d;
-  box-shadow: 0 4px 16px rgba(28, 60, 115, 0.35);
-}
-
-:global(.dark-mode) .model-test-container .question-popover-header + .question-popover-list,
-:global(.dark-mode) .model-test-container .question-popover-header,
-:global(.dark-mode) .model-test-container .question-popover-list {
-  background: transparent;
-}
-
-:global(.dark-mode) .model-test-container .question-item-main h4 {
-  color: #f4f6ff;
-}
-
-:global(.dark-mode) .model-test-container .question-item-main p {
-  color: #c2cbe4;
-}
-
-:global(.dark-mode) .model-test-container .question-popover {
+.dark-mode .question-popover {
   background: #0f1522 !important;
+  border: 1px solid #2a3550 !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-input .el-input__wrapper {
+  background: #0f1522 !important;
+  border-color: #273554 !important;
+  box-shadow: none !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-input .el-input__inner {
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .question-popover .question-item {
+  background: #141a2a !important;
+  border-color: #252f48 !important;
+}
+
+.dark-mode .question-popover .question-item:hover {
+  border-color: #37507d !important;
+  box-shadow: 0 4px 16px rgba(28, 60, 115, 0.35) !important;
+}
+
+.dark-mode .question-popover .question-item.is-selected {
+  border-color: #4a7afe !important;
+  background: rgba(58, 122, 254, 0.15) !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-button {
+  background: #1a2234 !important;
+  border-color: #2a3550 !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-button:hover {
+  background: #243249 !important;
+  border-color: #3a4560 !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-button--primary {
+  background: var(--el-color-primary) !important;
+  border-color: var(--el-color-primary) !important;
+  color: #fff !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-button--danger {
+  background: #6b1f1f !important;
+  border-color: #8b2f2f !important;
+  color: #f8b4b4 !important;
+}
+
+.dark-mode .question-popover .question-popover-header .el-button--danger:hover {
+  background: #7b2f2f !important;
+  border-color: #9b3f3f !important;
+}
+
+.dark-mode .question-popover .question-item-header {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .question-popover .question-item-main h4 {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .question-popover .question-item-main p {
+  color: #c2cbe4 !important;
+}
+
+.dark-mode .question-popover .question-item .el-tag {
+  background: rgba(58, 122, 254, 0.2) !important;
+  border-color: rgba(58, 122, 254, 0.4) !important;
+  color: #a7c8ff !important;
+}
+
+.dark-mode .question-popover .question-item .el-tag--info {
+  background: rgba(100, 116, 139, 0.2) !important;
+  border-color: rgba(100, 116, 139, 0.4) !important;
+  color: #94a3b8 !important;
+}
+
+.dark-mode .question-popover .question-item-actions .el-button {
+  color: #8fb4ff !important;
+}
+
+.dark-mode .question-popover .el-empty__description {
+  color: #b8c1da !important;
+}
+
+.dark-mode .question-popover .question-popover-header,
+.dark-mode .question-popover .question-popover-list {
+  background: transparent !important;
+}
+
+.dark-mode .question-popover .el-scrollbar__view {
+  background: transparent !important;
+}
+
+.dark-mode .model-test-container .reset-button {
+  background: #2a2f37;
+  border-color: #3a404c;
+  color: #e6e9ef;
+}
+
+.dark-mode .model-test-container .reset-button:hover {
+  background: #323845;
+  border-color: #4a5262;
+}
+
+.dark-mode .model-test-container .manage-button {
+  background: rgba(58, 122, 254, 0.18);
+  border-color: rgba(58, 122, 254, 0.45);
+  color: #a7c8ff;
+}
+
+.dark-mode .model-test-container .manage-button:hover {
+  background: rgba(58, 122, 254, 0.26);
+  border-color: rgba(58, 122, 254, 0.6);
+}
+
+.dark-mode .model-test-container .send-button {
+  background: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+  color: #fff;
+}
+
+/* Dialog 暗色模式 - dialog 通过 teleport 挂载到 body */
+.dark-mode .el-dialog {
+  background: #151b2c !important;
+  border: 1px solid #2a3550 !important;
+}
+
+.dark-mode .el-dialog__header {
+  background: transparent !important;
+  border-bottom: 1px solid #2a3550 !important;
+}
+
+.dark-mode .el-dialog__title {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .el-dialog__body {
+  background: transparent !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-dialog .el-form-item__label {
+  color: #c0cae5 !important;
+}
+
+.dark-mode .el-dialog .el-input__wrapper {
+  background: #0f1522 !important;
+  border-color: #273554 !important;
+  box-shadow: none !important;
+}
+
+.dark-mode .el-dialog .el-input__inner,
+.dark-mode .el-dialog .el-textarea__inner {
+  background: transparent !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-dialog__footer {
+  background: transparent !important;
+  border-top: 1px solid #2a3550 !important;
+}
+
+.dark-mode .el-dialog .el-button {
+  background: #1a2234 !important;
+  border-color: #2a3550 !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-dialog .el-button:hover {
+  background: #243249 !important;
+  border-color: #3a4560 !important;
+}
+
+.dark-mode .el-dialog .el-button--primary {
+  background: var(--el-color-primary) !important;
+  border-color: var(--el-color-primary) !important;
+  color: #fff !important;
+}
+
+/* 消息气泡暗色模式 */
+.dark-mode .model-test-container .user-message {
+  background: #1e5a9e !important;
+  color: #ffffff !important;
+}
+
+.dark-mode .model-test-container .assistant-message {
+  background: #1a2234 !important;
+  color: #e4e9f5 !important;
   border: 1px solid #2a3550;
 }
 
-:global(.dark-mode) .model-test-container .question-item-actions .el-button[text] {
-  color: #8fb4ff;
+.dark-mode .model-test-container .thinking-content {
+  background: rgba(255, 193, 7, 0.15) !important;
+  border-left-color: #ffc107 !important;
+  color: #ffd666 !important;
 }
-
-:global(.dark-mode) .model-test-container .el-empty__description {
-  color: #b8c1da;
-}
-
 </style>

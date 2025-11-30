@@ -917,4 +917,273 @@ pre {
     box-shadow: 0 2px 4px rgba(255, 154, 158, 0.3);
   }
 }
-</style> 
+</style>
+
+<style>
+/* 暗色模式样式（非 scoped） */
+.dark-mode .page-container {
+  background: transparent;
+  color: #e4e9f5;
+}
+
+.dark-mode .page-title {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .page-description {
+  color: #c0cae5 !important;
+}
+
+.dark-mode .action-bar {
+  background: #151b2c !important;
+  border: 1px solid #2a3550;
+}
+
+.dark-mode .prompt-card,
+.dark-mode .template-card {
+  background: #151b2c !important;
+  border-color: #2a3550 !important;
+}
+
+.dark-mode .prompt-card:hover,
+.dark-mode .template-card:hover {
+  border-color: #4a7afe !important;
+  box-shadow: 0 4px 12px rgba(74, 122, 254, 0.2) !important;
+}
+
+.dark-mode .card-header {
+  border-bottom-color: #2a3550 !important;
+}
+
+.dark-mode .prompt-title .name,
+.dark-mode .template-header h4 {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .prompt-content,
+.dark-mode .prompt-description,
+.dark-mode .template-description {
+  color: #c0cae5 !important;
+}
+
+.dark-mode .prompt-preview,
+.dark-mode .template-content {
+  background: rgba(26, 34, 52, 0.6) !important;
+  color: #b8c5e0 !important;
+  border-left-color: #4a7afe !important;
+}
+
+.dark-mode .create-time {
+  color: #7a8aa3 !important;
+}
+
+.dark-mode .action-button {
+  background: linear-gradient(135deg, #1a2234 0%, #2a3550 100%) !important;
+  border-color: #3a4560 !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .action-button:hover {
+  background: linear-gradient(135deg, #4a7afe 0%, #6b8fff 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Dialog 暗色模式 */
+.dark-mode .el-dialog {
+  background: #151b2c !important;
+  border: 1px solid #2a3550 !important;
+}
+
+.dark-mode .el-dialog__header {
+  background: transparent !important;
+  border-bottom: 1px solid #2a3550 !important;
+}
+
+.dark-mode .el-dialog__title {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .el-dialog__body {
+  background: transparent !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-form-item__label {
+  color: #c0cae5 !important;
+}
+
+.dark-mode .el-input__wrapper {
+  background: #0f1522 !important;
+  border-color: #273554 !important;
+  box-shadow: none !important;
+}
+
+.dark-mode .el-input__inner,
+.dark-mode .el-textarea__inner {
+  background: transparent !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-select__wrapper {
+  background: #0f1522 !important;
+  border-color: #273554 !important;
+  box-shadow: none !important;
+}
+
+.dark-mode .el-dialog__footer {
+  background: transparent !important;
+  border-top: 1px solid #2a3550 !important;
+}
+
+.dark-mode .el-button {
+  background: #1a2234 !important;
+  border-color: #2a3550 !important;
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-button:hover {
+  background: #243249 !important;
+  border-color: #3a4560 !important;
+}
+
+.dark-mode .el-button--primary {
+  background: var(--el-color-primary) !important;
+  border-color: var(--el-color-primary) !important;
+  color: #fff !important;
+}
+
+.dark-mode .el-empty__description {
+  color: #b8c1da !important;
+}
+
+.dark-mode pre {
+  background: #1a2234 !important;
+  color: #e4e9f5 !important;
+  border: 1px solid #2a3550;
+}
+
+.dark-mode .content-tips .el-text {
+  color: #a8b5d1 !important;
+}
+
+.dark-mode .convert-info .el-text {
+  color: #a8b5d1 !important;
+}
+
+.dark-mode .el-alert {
+  background: #1a2234 !important;
+  border-color: #2a3550 !important;
+}
+
+.dark-mode .el-alert--success {
+  background: rgba(103, 194, 58, 0.1) !important;
+  border-color: rgba(103, 194, 58, 0.3) !important;
+  color: #67c23a !important;
+}
+
+.dark-mode .el-alert--error {
+  background: rgba(245, 108, 108, 0.1) !important;
+  border-color: rgba(245, 108, 108, 0.3) !important;
+  color: #f56c6c !important;
+}
+
+.dark-mode .validation-section h4 {
+  color: #f4f6ff !important;
+}
+
+.dark-mode .error-item {
+  color: #f88 !important;
+}
+
+.dark-mode .warning-item {
+  color: #fa6 !important;
+}
+
+/* 下拉菜单暗色模式 */
+.dark-mode .el-dropdown-menu {
+  background: #151b2c !important;
+  border-color: #2a3550 !important;
+}
+
+.dark-mode .el-dropdown-menu__item {
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-dropdown-menu__item:hover {
+  background: #1a2234 !important;
+  color: #4a7afe !important;
+}
+
+/* Select 下拉菜单 */
+.dark-mode .el-select-dropdown {
+  background: #151b2c !important;
+  border-color: #2a3550 !important;
+}
+
+.dark-mode .el-select-dropdown__item {
+  color: #e4e9f5 !important;
+}
+
+.dark-mode .el-select-dropdown__item:hover,
+.dark-mode .el-select-dropdown__item.is-selected {
+  background: #1a2234 !important;
+  color: #4a7afe !important;
+}
+
+/* Tabs 暗色模式 */
+.dark-mode .el-tabs__header {
+  background: transparent !important;
+}
+
+.dark-mode .el-tabs__nav {
+  background: transparent !important;
+}
+
+.dark-mode .el-tabs__item {
+  color: #c0cae5 !important;
+}
+
+.dark-mode .el-tabs__item:hover,
+.dark-mode .el-tabs__item.is-active {
+  color: #4a7afe !important;
+}
+
+.dark-mode .el-tabs__active-bar {
+  background-color: #4a7afe !important;
+}
+
+/* Tag 暗色模式 */
+.dark-mode .el-tag {
+  background: rgba(58, 122, 254, 0.2) !important;
+  border-color: rgba(58, 122, 254, 0.4) !important;
+  color: #a7c8ff !important;
+}
+
+.dark-mode .el-tag--success {
+  background: rgba(103, 194, 58, 0.2) !important;
+  border-color: rgba(103, 194, 58, 0.4) !important;
+  color: #95d475 !important;
+}
+
+.dark-mode .el-tag--info {
+  background: rgba(100, 116, 139, 0.2) !important;
+  border-color: rgba(100, 116, 139, 0.4) !important;
+  color: #94a3b8 !important;
+}
+
+.dark-mode .el-tag--warning {
+  background: rgba(230, 162, 60, 0.2) !important;
+  border-color: rgba(230, 162, 60, 0.4) !important;
+  color: #f0a020 !important;
+}
+
+/* Switch 暗色模式 */
+.dark-mode .el-switch__core {
+  background: #2a3550 !important;
+  border-color: #3a4560 !important;
+}
+
+.dark-mode .el-switch.is-checked .el-switch__core {
+  background: var(--el-color-primary) !important;
+}
+</style>
