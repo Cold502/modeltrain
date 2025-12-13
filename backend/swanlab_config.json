@@ -1,7 +1,6 @@
 {
   "host": "localhost",
   "port": 5092,
-  "data_dir": "C:\\models",
-  "project_name": "modeltrain",
-  "user_id": 3
+  "data_dir": "./swanlab_data",
+  "project_name": "modeltrain"
 }

@@ -1,31 +1,79 @@
 <template>
   <div class="page-container">
-    <h2>训练可视化 - SwanLab</h2>
-    <p>查看模型训练过程和结果的可视化图表</p>
+    <div class="header-section">
+      <div>
+        <h2>训练可视化 - SwanLab</h2>
+        <p>查看模型训练过程和结果的可视化图表</p>
+      </div>
+      <div class="view-toggle">
+        <el-radio-group v-model="viewMode" size="large">
+          <el-radio-button value="config">配置视图</el-radio-button>
+          <el-radio-button value="embedded" :disabled="!swanlabInfo.status || swanlabInfo.status !== 'running'">
+            嵌入视图
+          </el-radio-button>
+        </el-radio-group>
+      </div>
+    </div>
+
+    <!-- 嵌入式 SwanLab 界面 -->
+    <div v-if="viewMode === 'embedded'" class="embedded-container">
+      <div class="iframe-wrapper">
+        <iframe
+          :src="swanlabUrl"
+          frameborder="0"
+          class="swanlab-iframe"
+          @load="onIframeLoad"
+        ></iframe>
+        <div v-if="iframeLoading" class="iframe-loading">
+          <el-icon class="is-loading" size="32"><Loading /></el-icon>
+          <p>正在加载 SwanLab...</p>
+        </div>
+      </div>
+    </div>
     
-    <!-- SwanLab 状态和配置 -->
-    <el-card style="margin-bottom: 20px;">
-      <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>SwanLab 服务状态</span>
-          <div>
-            <el-button 
-              type="primary" 
-              @click="openSwanLab"
-              :disabled="!swanlabInfo.status"
-              style="margin-right: 10px;"
-            >
-              打开 SwanLab
-            </el-button>
-            <el-button 
-              type="success" 
-              @click="startSwanLab"
-              :loading="startingSwanLab"
-              :disabled="swanlabInfo.status === 'running'"
-            >
-              启动 SwanLab
-            </el-button>
-          </div>
+    <!-- 配置视图 -->
+    <div v-else class="config-view">
+      <!-- SwanLab 安装提示 -->
+      <el-alert
+        v-if="swanlabInfo.status === 'stopped' || swanlabInfo.status === 'error'"
+        title="SwanLab 未运行"
+        type="warning"
+        :closable="false"
+        style="margin-bottom: 20px;"
+      >
+        <template #default>
+          <p style="margin: 8px 0;">如果服务启动失败，请检查：</p>
+          <ol style="margin: 8px 0; padding-left: 20px;">
+            <li>SwanLab 是否已安装：<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">pip install swanlab</code></li>
+            <li>端口 5092 是否被占用（可修改配置使用其他端口）</li>
+            <li>查看后端日志获取详细错误信息</li>
+          </ol>
+        </template>
+      </el-alert>
+
+      <!-- SwanLab 状态和配置 -->
+      <el-card style="margin-bottom: 20px;">
+        <template #header>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span>SwanLab 服务状态</span>
+            <div>
+              <el-button 
+                type="primary" 
+                @click="openSwanLab"
+                :disabled="!swanlabInfo.status"
+                style="margin-right: 10px;"
+              >
+                打开 SwanLab
+              </el-button>
+              <el-button 
+                type="success" 
+                @click="startSwanLab"
+                :loading="startingSwanLab"
+                :disabled="swanlabInfo.status === 'running'"
+              >
+                启动 SwanLab
+              </el-button>
+            </div>
         </div>
       </template>
       
@@ -216,11 +264,12 @@
         </el-button>
       </template>
     </el-dialog>
+    </div>
   </div>
 </template>
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Link, 
@@ -256,6 +305,8 @@ export default {
       project_name: 'modeltrain'
     })
     
+    const viewMode = ref('config')
+    const iframeLoading = ref(true)
     const loadingProjects = ref(false)
     const startingSwanLab = ref(false)
     const savingConfig = ref(false)
@@ -340,11 +391,24 @@ export default {
     const startSwanLab = async () => {
       startingSwanLab.value = true
       try {
-        await trainingAPI.startSwanLab(swanlabConfig)
-        ElMessage.success('SwanLab 启动成功')
-        await loadSwanLabInfo()
+        const response = await trainingAPI.startSwanLab(swanlabConfig)
+        ElMessage.success('SwanLab 启动成功，请等待服务完全启动...')
+        
+        // 等待几秒后重新加载状态
+        setTimeout(async () => {
+          await loadSwanLabInfo()
+          if (swanlabInfo.value.status === 'running') {
+            ElMessage.success('SwanLab 服务已就绪，可以切换到嵌入视图')
+          }
+        }, 5000)
       } catch (error) {
-        ElMessage.error('启动 SwanLab 失败: ' + error.message)
+        console.error('启动 SwanLab 失败:', error)
+        const errorMsg = error.response?.data?.detail || error.message
+        ElMessage.error({
+          message: errorMsg,
+          duration: 8000,
+          showClose: true
+        })
       } finally {
         startingSwanLab.value = false
       }
@@ -451,6 +515,16 @@ export default {
       }
     }
 
+    // 计算 SwanLab URL
+    const swanlabUrl = computed(() => {
+      return swanlabInfo.value.url || `http://${swanlabConfig.host}:${swanlabConfig.port}`
+    })
+
+    // iframe 加载完成
+    const onIframeLoad = () => {
+      iframeLoading.value = false
+    }
+
     onMounted(() => {
       loadSwanLabInfo()
     })
@@ -458,6 +532,9 @@ export default {
     return {
       swanlabInfo,
       swanlabConfig,
+      viewMode,
+      iframeLoading,
+      swanlabUrl,
       loadingProjects,
       startingSwanLab,
       savingConfig,
@@ -477,7 +554,8 @@ export default {
       createProject,
       confirmCreateProject,
       openProject,
-      deleteProject
+      deleteProject,
+      onIframeLoad
     }
   }
 }
@@ -485,7 +563,80 @@ export default {
 
 <style scoped>
 .page-container {
+  padding: 0;
+  height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 20px;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
+}
+
+.header-section h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  color: var(--el-text-color-primary);
+}
+
+.header-section p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+
+.view-toggle {
+  margin-left: 20px;
+}
+
+.config-view {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.embedded-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.iframe-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.swanlab-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.iframe-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-bg-color);
+  z-index: 10;
+}
+
+.iframe-loading p {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
 }
 
 .swanlab-status {
