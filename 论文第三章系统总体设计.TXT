@@ -1,0 +1,362 @@
+================================================================================
+三、系统总体设计
+================================================================================
+
+系统总体设计是连接需求分析和详细设计的桥梁，通过对系统架构、业务流程、数据结构等方面的整体规划，为后续的详细设计和实现提供指导。本章从业务流程、逻辑架构、系统结构、技术架构和数据库设计五个方面，全面阐述系统的总体设计方案。
+
+（一）业务流程图
+
+系统的业务流程设计直接决定了用户的使用体验和系统的运行效率。本节详细描述系统的四个核心业务流程：用户管理流程、模型配置流程、对话流程和训练流程。
+
+1. 用户管理业务流程
+
+用户管理是系统的基础流程，包括用户注册、登录和令牌刷新三个主要环节。
+
+用户注册流程：用户在注册页面填写邮箱、昵称和密码 → 前端实时校验输入格式 → 提交到后端API → 后端验证数据合法性并检查唯一性 → 使用bcrypt加密密码（成本因子12） → 创建用户记录存储到数据库 → 自动登录并返回JWT令牌 → 跳转到仪表盘。
+
+用户登录流程：用户输入邮箱和密码 → 提交登录请求 → 后端查询用户并验证密码 → 生成Access Token（有效期15分钟）和Refresh Token（有效期7天） → Access Token在响应体返回，Refresh Token通过HttpOnly Cookie返回 → 更新最后登录时间 → 前端存储Token和用户信息到Vuex和localStorage → 跳转到仪表盘。
+
+令牌刷新流程：前端发送API请求携带Access Token → 后端验证Token过期返回401错误 → 前端拦截器检测到401 → 自动调用刷新接口 → 后端从Cookie读取Refresh Token验证有效性 → 生成新的Access Token返回 → 前端更新存储并重发原始请求 → 如果Refresh Token也过期则跳转登录页。
+
+2. 模型配置业务流程
+
+模型配置流程使用户能够便捷地接入各个LLM提供商的模型。
+
+选择提供商 → 配置API端点和密钥（云端提供商需要，本地提供商不需要） → 刷新模型列表（调用提供商API获取可用模型） → 选择模型 → 设置生成参数（temperature、top_p、max_tokens等，使用滑块和输入框） → 可选设置默认提示词 → 指定配置名称和备注 → 测试连接（发送测试消息验证配置） → 保存配置到数据库 → 配置可在对话中使用。
+
+3. 对话业务流程
+
+对话流程是用户与大语言模型交互的核心。
+
+创建会话（在chat_sessions表创建记录） → 选择模型配置 → 可选应用提示词模板 → 用户输入问题 → 提交请求到后端 → 保存用户消息到chat_messages表 → 后端根据配置调用LLM API → 接收流式响应（SSE格式） → 实时传输Token到前端 → 前端逐字显示（打字机效果） → 识别和解析<think>标签（推理过程和最终答案分离展示） → 流式响应结束 → 保存模型回复到数据库 → 更新会话的消息数量和更新时间 → 用户可继续对话或导出会话。
+
+4. 训练业务流程
+
+训练流程集成LLaMA-Factory实现模型微调。
+
+创建训练任务指定名称和描述 → 选择基础模型（从150+种模型中选择） → 上传训练数据集（JSON、JSONL、CSV格式，系统验证格式） → 选择训练方法（LoRA、QLoRA、全参数微调） → 配置训练超参数（学习率、批次大小、训练轮数等） → 提交任务 → 后端生成LLaMA-Factory配置文件（YAML） → 调用CLI启动训练进程 → 任务状态设为"运行中" → 实时捕获和推送训练日志 → LLaMA-Factory自动记录指标到SwanLab → 用户可启动SwanLab服务查看实时曲线 → 训练完成保存模型到输出目录 → 更新任务状态为"已完成" → 用户可在模型配置中添加训练好的模型使用。
+
+（二）系统逻辑架构图
+
+系统采用经典的三层架构[11]：表示层、业务逻辑层、数据访问层。该架构设计借鉴了深度学习中的分层思想[15][18]，通过明确的层次划分实现模块解耦和职责分离。
+
+表示层（前端）：
+
+负责用户交互和界面展示，基于Vue 3框架构建。包含登录注册、仪表盘、模型配置、智能对话、模型测试、提示词管理、训练管理、训练可视化、系统管理、个人设置等10个功能模块。通过HTTP/HTTPS与业务逻辑层通信，使用Axios发送请求，请求拦截器自动添加JWT令牌，响应拦截器处理Token刷新和全局错误。
+
+业务逻辑层（后端）：
+
+负责业务规则、数据验证、权限控制、外部服务调用，基于FastAPI框架构建，采用异步编程模式。包含用户认证服务（注册、登录、密码重置、Token管理）、模型管理服务（配置CRUD、模型列表刷新、连接测试）、对话管理服务（会话管理、消息保存、历史导出）、LLM调用服务（统一调用接口、流式响应、思维链解析）、训练任务服务（任务管理、进程控制、日志收集）、SwanLab服务（可视化服务管理）、文件管理服务（上传、存储、验证）、系统管理服务（用户管理、日志查询）。通过ORM与数据访问层通信，通过HTTP/HTTPS与外部LLM API通信。
+
+数据访问层（数据库）：
+
+负责数据持久化存储和查询，使用SQLAlchemy 2.x作为ORM框架。包含users（用户数据）、model_configs（模型配置）、chat_sessions（对话会话）、chat_messages（对话消息）、system_prompts（系统提示词）、training_tasks（训练任务）、test_records（测试记录）、system_logs（系统日志）等8个核心表。通过SQLAlchemy Session管理连接和事务，使用Alembic进行数据库版本迁移。
+
+外部服务层：
+
+系统依赖的外部服务包括LLM提供商API（OpenAI、Anthropic、DeepSeek、智谱AI、硅基流动、302.AI等云端服务，Ollama、vLLM、SGLang、LMDeploy等本地服务）、LLaMA-Factory（独立进程，通过CLI调用）、SwanLab（独立服务，通过命令行启停）。
+
+三层架构的优势：职责分离（每层关注自己的职责）、低耦合（通过接口通信）、易测试（可针对每层编写单元测试）、易维护（修改某层不影响其他层）、可扩展（便于添加新功能）。
+
+（三）系统结构图
+
+系统按功能模块划分为11个主要子系统：
+
+1. 用户认证子系统：用户注册、用户登录、密码重置、JWT令牌管理、权限检查。
+
+2. 仪表盘子系统：系统概览（用户数、模型数、会话数、任务数）、数据统计（图表展示趋势）、最近活动（最新会话、任务、配置）。
+
+3. 模型配置子系统：提供商管理（8个预置提供商）、模型列表刷新、配置CRUD、连接测试、默认配置。
+
+4. 智能对话子系统：会话管理（创建、重命名、删除、清空）、流式输出（SSE实时传输）、思维链解析（<think>标签识别）、历史导出（Markdown/JSON/TXT格式）、Markdown渲染和代码高亮。
+
+5. 模型测试子系统：多模型选择（2-3个并行对比）、并行对比（分栏展示回答）、批量测试（上传问题列表自动测试）、结果导出（CSV/JSON/PDF格式）、指标记录（响应时间、Token消耗、用户评分）。
+
+6. 提示词管理子系统：提示词CRUD（创建、编辑、删除、查询）、分类管理（角色扮演、代码生成、文案创作等预置分类）、模板复用（快速选择应用）、格式验证（长度检查、变量支持）、团队共享（全局模板、公开模板）。
+
+7. 训练任务子系统：任务配置（选择基础模型、上传数据集、选择训练方法、配置超参数）、任务执行（启动、暂停、终止、日志查看）、状态管理（pending/running/completed/failed/stopped）、LLaMA-Factory集成（自动启动WebUI、CLI调用、配置同步）。
+
+8. 训练可视化子系统：SwanLab服务管理（启动、停止、端口配置、状态检测）、项目列表（显示项目和实验）、实时监控（损失曲线、学习率变化、训练进度）、历史分析（对比实验、导出数据、生成报告）。
+
+9. 系统管理子系统：用户管理（列表查询、角色调整、账号禁用）、角色权限（RBAC、权限验证、审计日志）、系统配置（标题Logo、默认设置、Token有效期、上传限制）、日志管理（运行日志、API日志、错误日志、用户操作日志）。
+
+10. 暗色模式子系统：主题切换（亮色/暗色/跟随系统）、CSS变量管理（定义主题颜色变量）、状态持久化（Vuex+localStorage存储选择）。
+
+11. 数据管理子系统：数据库操作（通过ORM执行CRUD）、文件存储（上传、验证、下载）、备份恢复（定期自动备份、手动备份、数据恢复）、数据清理（过期数据、临时文件）。
+
+（四）技术架构设计
+
+1. 体系结构
+
+系统采用前后端分离的B/S架构，分为五个层次。
+
+客户端层：运行在浏览器中，Vue 3框架+Element Plus组件库+Vuex状态管理+Vue Router路由管理。Axios封装HTTP通信（请求拦截添加Token、响应拦截处理401）。Marked.js渲染Markdown+highlight.js代码高亮。ECharts展示图表。Vite构建工具提供快速开发和高效打包。支持Chrome 90+、Firefox 88+、Edge 90+、Safari 14+。
+
+Web服务器层：生产环境使用Nginx（静态文件服务、反向代理、HTTPS支持、缓存、Gzip压缩）。开发环境使用Vite Dev Server。
+
+应用服务器层：FastAPI框架+Uvicorn ASGI服务器。原生异步支持（async/await）。自动API文档生成（Swagger UI）。路由层（API路由、参数验证）、中间件层（CORS、异常处理）、业务逻辑层（各项服务）、数据访问层（SQLAlchemy ORM）。
+
+外部服务层：LLM提供商API（OpenAI、DeepSeek、Anthropic、智谱AI、硅基流动、302.AI等云端服务，Ollama、vLLM、SGLang、LMDeploy等本地服务）。LLaMA-Factory训练框架。SwanLab可视化工具。
+
+数据持久层：SQLite（默认）/MySQL/PostgreSQL。存储用户数据、模型配置、对话记录、训练任务等。通过SQLAlchemy ORM访问，使用Alembic管理版本迁移。
+
+2. 技术总体结构模型图
+
+前端技术栈：
+Vue 3（3.3+）- 核心框架
+  - Element Plus（2.4+）- UI组件库
+  - Vuex（4.1+）- 状态管理
+  - Vue Router（4.2+）- 路由管理
+  - Axios（1.6+）- HTTP客户端
+  - Marked.js（15.0+）- Markdown渲染
+  - Highlight.js（11.11+）- 代码高亮
+  - ECharts（5.4+）- 数据可视化
+  - Vite（7.1+）- 构建工具
+
+后端技术栈：
+FastAPI（0.104+）- Web框架
+  - Uvicorn（0.24+）- ASGI服务器
+  - SQLAlchemy（2.0+）- ORM框架
+  - Alembic（1.12+）- 数据库迁移
+  - python-jose（3.3+）- JWT处理
+  - passlib（1.7+）- 密码加密
+  - httpx（0.25+）- 异步HTTP客户端
+  - python-multipart - 文件上传
+  - LLaMA-Factory - 模型训练框架
+
+（五）数据库设计
+
+1. 概念模型（E-R图）
+
+系统核心实体及其关系：
+
+用户实体（User）：id、email、nickname、password_hash、role、is_admin、is_active、created_at、updated_at
+
+模型提供商实体（ModelProvider）：id、name、api_url、description、icon_url、status、created_at、updated_at
+
+提供商模型实体（ProviderModel）：id、provider_id、model_id、model_name、size、description、is_vision、status、created_at、updated_at
+
+模型配置实体（ModelConfig）：id、user_id、provider_id、provider_name、endpoint、api_key、model_id、model_name、type、temperature、max_tokens、top_p、top_k、status、created_at、updated_at
+
+对话会话实体（ChatSession）：id、user_id、title、created_at、updated_at
+
+对话消息实体（ChatMessage）：id、session_id、role、content、model_name、is_streaming、created_at
+
+系统提示词实体（SystemPrompt）：id、name、content、description、format_type、category、is_default、is_system、created_by、created_at、updated_at
+
+模型测试对话实体（ModelPlaygroundChat）：id、user_id、session_id、model_config_id、role、content、thinking、created_at
+
+测试提示词实体（TestPrompt）：id、title、content、created_by、created_at、updated_at
+
+数据集实体（Dataset）：id、name、description、file_path、file_size、format_type、uploaded_by、created_at
+
+训练配置实体（TrainingConfig）：id、name、config_data、created_by、created_at、updated_at
+
+训练任务实体（TrainingTask）：id、name、model_name、dataset_id、config_id、status、progress、log_file、output_dir、swanlab_url、started_at、completed_at、created_by、created_at
+
+实体关系：
+- 用户 1:N 模型配置（一个用户创建多个配置）
+- 用户 1:N 对话会话（一个用户有多个会话）
+- 对话会话 1:N 对话消息（一个会话包含多条消息）
+- 用户 1:N 系统提示词（一个用户创建多个提示词）
+- 用户 1:N 训练任务（一个用户提交多个任务）
+- 用户 1:N 数据集（一个用户上传多个数据集）
+- 用户 1:N 测试对话（一个用户进行多次测试）
+- 模型提供商 1:N 提供商模型（一个提供商有多个模型）
+- 模型提供商 1:N 模型配置（一个提供商对应多个配置）
+- 训练任务 N:1 数据集（多个任务可使用同一数据集）
+- 训练任务 N:1 训练配置（多个任务可使用同一配置）
+
+2. 逻辑模型设计
+
+数据库设计遵循第三范式（3NF），主要设计原则：
+
+（1）主键设计：所有表使用自增整数作为主键，保证唯一性和查询效率。
+
+（2）外键关联：通过外键建立表间关系，保证引用完整性。如chat_messages表的session_id字段关联chat_sessions表的id。
+
+（3）索引设计：在常用查询字段上建立索引。用户邮箱（唯一索引）、昵称（唯一索引）、会话创建时间、消息创建时间、任务状态等。
+
+（4）时间戳：所有表包含created_at字段记录创建时间，重要表包含updated_at字段记录更新时间。使用DATETIME类型。
+
+（5）软删除：对于重要数据（如用户、会话），采用软删除机制，添加is_deleted标志而非物理删除（当前版本未实现，作为未来改进）。
+
+（6）数据类型选择：
+- 文本字段使用VARCHAR，限制合理长度（如email 255字符、nickname 50字符）
+- 大文本（对话内容、提示词内容）使用TEXT类型
+- 时间使用DATETIME类型
+- 布尔值使用BOOLEAN类型（SQLite中实际存储为INTEGER 0/1）
+- 枚举值使用VARCHAR存储字符串，便于扩展
+
+3. 核心业务表设计
+
+表3-5-1 用户表（users）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        用户ID
+email           VARCHAR(255) 否    否        邮箱（唯一）
+nickname        VARCHAR(100) 否    是        昵称
+password_hash   VARCHAR(255) 否    否        密码哈希
+role            VARCHAR(20)  否    否        角色（user/admin）
+is_admin        BOOLEAN      否    否        是否管理员
+is_active       BOOLEAN      否    否        是否启用
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+索引：email（唯一）
+
+表3-5-2 模型提供商表（model_providers）
+字段名          数据类型      主键  允许为空  说明
+id              VARCHAR(100) 是    否        提供商ID
+name            VARCHAR(200) 否    否        提供商名称
+api_url         VARCHAR(500) 否    否        API地址
+description     TEXT         否    是        描述信息
+icon_url        VARCHAR(500) 否    是        图标URL
+status          INTEGER      否    否        状态（1启用/0禁用）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+
+表3-5-3 提供商模型表（provider_models）
+字段名          数据类型      主键  允许为空  说明
+id              VARCHAR(200) 是    否        模型唯一ID（provider_id+model_id）
+provider_id     VARCHAR(100) 否    否        提供商ID（外键）
+model_id        VARCHAR(200) 否    否        模型ID
+model_name      VARCHAR(200) 否    否        模型名称
+size            INTEGER      否    是        模型大小（字节）
+description     TEXT         否    是        描述信息
+is_vision       BOOLEAN      否    否        是否为视觉模型
+status          INTEGER      否    否        状态（1可用/0不可用）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+外键：provider_id → model_providers.id
+索引：provider_id
+
+表3-5-4 模型配置表（model_configs）
+字段名          数据类型      主键  允许为空  说明
+id              VARCHAR(100) 是    否        配置ID
+user_id         INTEGER      否    否        用户ID（外键）
+provider_id     VARCHAR(100) 否    否        提供商ID（外键）
+provider_name   VARCHAR(200) 否    否        提供商名称
+endpoint        VARCHAR(500) 否    否        API端点
+api_key         TEXT         否    是        API密钥
+model_id        VARCHAR(200) 否    否        模型ID
+model_name      VARCHAR(200) 否    否        模型名称
+type            VARCHAR(50)  否    否        类型（text/vision）
+temperature     FLOAT        否    否        温度参数
+max_tokens      INTEGER      否    否        最大token数
+top_p           FLOAT        否    否        top_p参数
+top_k           FLOAT        否    否        top_k参数
+status          INTEGER      否    否        状态（1启用/0禁用）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+外键：user_id → users.id, provider_id → model_providers.id
+索引：user_id、provider_id
+
+表3-5-5 对话会话表（chat_sessions）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        会话ID
+user_id         INTEGER      否    否        用户ID（外键）
+title           VARCHAR(255) 否    否        会话标题（默认"新对话"）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+外键：user_id → users.id
+索引：user_id、created_at
+
+表3-5-6 对话消息表（chat_messages）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        消息ID
+session_id      INTEGER      否    否        会话ID（外键）
+role            VARCHAR(50)  否    否        角色（user/assistant/system）
+content         TEXT         否    否        消息内容
+model_name      VARCHAR(255) 否    是        使用的模型
+is_streaming    BOOLEAN      否    否        是否流式输出中
+created_at      DATETIME     否    否        创建时间
+外键：session_id → chat_sessions.id（级联删除）
+索引：session_id、created_at
+
+表3-5-7 系统提示词表（system_prompts）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        提示词ID
+name            VARCHAR(255) 否    否        提示词名称
+content         TEXT         否    否        提示词内容
+description     TEXT         否    是        描述信息
+format_type     VARCHAR(50)  否    否        格式类型（openai/ollama/custom）
+category        VARCHAR(100) 否    否        分类（general/coding/translation等）
+is_default      BOOLEAN      否    否        是否默认提示词
+is_system       BOOLEAN      否    否        是否系统预定义
+created_by      INTEGER      否    是        创建者ID（外键）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+外键：created_by → users.id（可为NULL）
+索引：category、created_by
+
+表3-5-8 模型测试对话表（model_playground_chats）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        记录ID
+user_id         INTEGER      否    是        用户ID（外键）
+session_id      VARCHAR(100) 否    否        会话ID
+model_config_id VARCHAR(100) 否    是        模型配置ID（外键）
+role            VARCHAR(50)  否    否        角色（user/assistant/error）
+content         TEXT         否    否        消息内容
+thinking        TEXT         否    是        推理过程（思维链）
+created_at      DATETIME     否    否        创建时间
+外键：user_id → users.id, model_config_id → model_configs.id
+索引：session_id、user_id
+
+表3-5-9 测试提示词表（test_prompts）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        提示词ID
+title           VARCHAR(255) 否    否        标题
+content         TEXT         否    否        内容
+created_by      INTEGER      否    是        创建者ID（外键）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    否        更新时间
+外键：created_by → users.id
+
+表3-5-10 数据集表（datasets）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        数据集ID
+name            VARCHAR(255) 否    否        数据集名称
+description     TEXT         否    是        描述信息
+file_path       VARCHAR(500) 否    否        文件路径
+file_size       INTEGER      否    是        文件大小（字节）
+format_type     VARCHAR(50)  否    是        格式类型（json/jsonl/csv）
+uploaded_by     INTEGER      否    是        上传者ID（外键）
+created_at      DATETIME     否    否        创建时间
+外键：uploaded_by → users.id
+
+表3-5-11 训练配置表（training_configs）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        配置ID
+name            VARCHAR(255) 否    否        配置名称
+config_data     JSON         否    否        配置数据（JSON格式）
+created_by      INTEGER      否    是        创建者ID（外键）
+created_at      DATETIME     否    否        创建时间
+updated_at      DATETIME     否    是        更新时间
+外键：created_by → users.id
+
+表3-5-12 训练任务表（training_tasks）
+字段名          数据类型      主键  允许为空  说明
+id              INTEGER      是    否        任务ID
+name            VARCHAR(255) 否    否        任务名称
+model_name      VARCHAR(255) 否    否        模型名称
+dataset_id      INTEGER      否    是        数据集ID（外键）
+config_id       INTEGER      否    是        配置ID（外键）
+status          VARCHAR(50)  否    否        状态（pending/running/completed/failed）
+progress        FLOAT        否    否        进度（0.0-1.0）
+log_file        VARCHAR(500) 否    是        日志文件路径
+output_dir      VARCHAR(500) 否    是        输出目录
+swanlab_url     VARCHAR(500) 否    是        SwanLab地址
+started_at      DATETIME     否    是        开始时间
+completed_at    DATETIME     否    是        完成时间
+created_by      INTEGER      否    是        创建者ID（外键）
+created_at      DATETIME     否    否        创建时间
+外键：dataset_id → datasets.id, config_id → training_configs.id, created_by → users.id
+索引：status、created_by、created_at
+
+数据库设计说明：
+- 使用Alembic进行数据库版本迁移管理，每次数据库结构变更生成迁移脚本
+- 默认使用SQLite，生产环境可切换到MySQL或PostgreSQL，通过修改数据库连接配置即可，业务代码无需改动
+- 索引设计考虑了常用查询场景，如按用户ID查询配置列表、按会话ID查询消息列表、按状态筛选训练任务等
+- 外键约束保证了数据的引用完整性，删除用户时可设置级联删除相关数据或禁止删除
+
+本章从业务流程、逻辑架构、系统结构、技术架构和数据库设计五个方面，全面阐述了系统的总体设计方案。业务流程图清晰展示了用户管理、模型配置、对话、训练四个核心流程的每个步骤。逻辑架构采用三层架构模式，职责分离、低耦合、易维护。系统结构将复杂系统拆分为11个相对独立的子系统，便于开发和维护。技术架构采用前后端分离的B/S架构，前端基于Vue 3，后端基于FastAPI，性能优异、开发高效。数据库设计遵循范式理论，合理设计表结构和索引，保证数据一致性和查询效率。这些设计为后续的详细设计和实现提供了坚实的基础。
+

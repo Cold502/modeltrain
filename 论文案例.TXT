@@ -1,0 +1,758 @@
+
+
+
+
+国家开放大学
+
+学士学位论文
+
+题目：大语言模型实训平台的设计与实现
+
+
+分部：吉林分部
+学习中心：实验学院
+专业：计算机科学与技术
+入学时间：
+学号：2422001201145
+姓名：王楠
+指导教师：董玮
+论文完成日期:     年    月
+
+学位论文原创性声明
+本人郑重声明：所呈交的学位论文，是本人在导师指导下，进行研究工作所取得的成果。除文中已经注明引用的内容外，本学位论文的研究成果不包含任何他人创作的、已公开发表或者没有公开发表的作品的内容。对本论文所涉及的研究工作做出贡献的其他个人和集体，均已在文中以明确方式标明。本学位论文原创性声明的法律责任由本人承担。
+作者签名：王楠   日期：    
+
+学位论文版权使用授权声明
+本人完全了解国家开放大学关于收集、保存、使用学位论文的规定，同意如下各项内容：按照学校要求提交学位论文的印刷本和电子版本；学校有权保存学位论文的印刷本和电子版，并采用影印、缩印、扫描、数字化或其他手段保存论文；学校有权提供目录检索以及提供本学位论文全文或者部分的阅览服务，以及出版学位论文；学校有权按有关规定向国家有关部门或者机构送交论文的复印件和电子版；在不以营利为目的的前提下，学校可以适当复制论文的部分或全部内容用于学术活动。
+作者签名： 王楠   日期：   
+
+
+目  录
+
+摘  要	Ⅰ
+一、	综述	1
+(一)	系统建设背景	1
+(二)	研究意义	1
+(三)	术语定义	1
+(四)	技术选型	2
+1.	后端	2
+2.	前端	2
+3.	数据库	2
+4.	容器	3
+(五)	系统运行环境	4
+1.	软件环境	4
+2.	硬件环境	4
+二、	需求分析	5
+(一)	系统业务总体需求	5
+(二)	系统功能需求分析	5
+1.	项目管理	5
+2.	报表管理	6
+3.	填报过程管理	6
+4.	调查员管理	6
+5.	问卷管理	7
+6.	样本管理	7
+7.	基础数据管理	7
+三、	系统总体设计	8
+(一)	业务流程图	8
+(二)	系统逻辑架构图	9
+(三)	系统结构图	9
+(四)	技术架构设计	10
+1.	体系结构	10
+2.	技术总体结构模型图	10
+(五)	数据库设计	11
+1.	模型图	11
+2.	核心业务表格清单	12
+3.	部分核心业务表设计	13
+四、	系统详细设计与实现	15
+(一)	登录	15
+1.	页面展示	15
+2.	前端jsp关键程序代码如下	15
+3.	后端Java关键程序代码如下	16
+(二)	问卷生成子系统	17
+1.	项目管理	17
+2.	问卷创建	17
+(三)	报表生成子系统	18
+(四)	对象管理子系统	18
+(五)	名录库管理子系统	19
+(六)	抽样框管理子系统	19
+1.	页面展示	19
+2.	关键程序代码如下	20
+(七)	数据调查子系统	21
+1.	电脑端调查对象填报	21
+2.	手机端调查对象填报	22
+(八)	数据智能分析子系统	23
+1.	项目分析	23
+2.	进度分析	23
+3.	频次分析	24
+4.	数据详情	24
+5.	关键程序代码如下	25
+(九)	综合管理子系统	27
+1.	基础业务数据管理	27
+2.	系统管理	27
+五、	系统测试	28
+(一)	目的	28
+(二)	测试环境	28
+(三)	单元测试	29
+(四)	集成测试	29
+1.	功能模块测试	29
+2.	业务流程测试	29
+(五)	性能测试	30
+1.	用户登录	30
+2.	问卷提交	30
+3.	数据审核	30
+(六)	其他测试	31
+1.	功能性	31
+2.	可靠性	31
+3.	可维护性	31
+4.	可移植性	32
+5.	易用性	32
+(七)	测试结论	32
+六、	结束语	33
+致谢	34
+参考文献	35
+
+摘  要
+
+项目以统计局提出的统计工作“三个提高”原则为背景，以“智慧统计”的信息化建设为目标，依托运营商网络和互联网等工具，建成一套高效、科学的调查统计工作模式，能够对全区的调查统计工作进行优化和升级，节约时间成本、人力成本和资源开销；能够更加便捷的开展调查工作；同时能够实现随时随地进行填报。
+使用问卷调查的方法，是采集数据或资料的最常用途径，问卷调查适用面广、方便获取数据、研究成本低，在很多领域使用非常广泛，以往由于信息化不成熟而采取传统的电话采访、纸质填写问卷等这种耗时又繁琐的方式。随着个人计算机的普及和互联网的广泛应用，各种基于网络的调查方法开始出现。如问卷星、调查派等。
+在线的问卷调查系统在调查范围、调查效率、资料整理等方面具有极大的优势，结合Java Web成熟稳定的软件技术，强强联合，是未来统计业务在调查领域的主要方式。
+
+关键词：JSP；统计；调查；问卷；JAVA；设计；开发。
+
+
+
+
+一、
+综述
+(一)系统建设背景
+国家统计局提出了统计工作“三个提高”原则――提高统计能力、提高统计数据质量、提高政府统计公信力。海淀统计局提出了“智慧统计”的信息化建设目标，以提高数据质量建设为重点，以强化统计法制建设为保障，以改革调查方法、增加调查手段，提升业务效率为基础方法，确保统计信息化系统建设做到体系完整、目标明确、发展有序、成果显著。
+(二)研究意义
+统计智慧调查系统项目通过对现有业务进行梳理分析，依托运营商网络和互联网等工具，建成一套高效、科学的调查统计工作模式，能够对全区的调查统计工作进行优化和升级，节约时间成本、人力成本和资源开销；能够更加便捷的开展调查工作；同时能够实现随时随地进行填报，自动实时上传的功能。在提高效率的同时系统也使得被调查对象更有意愿参与这项工作。本项目建设是在政府业务工作中应用新的、先进的方式，可以节约纸张等实物，节约人工收发的时间成本和人力成本。
+(三)术语定义
+系统：统计智慧调查系统。
+子系统：是按照业务梳理进行模块分类的统称。
+
+
+(四)技术选型
+1.后端
+Java是一种广泛应用于Web应用开发、移动应用开发、企业级应用开发、大数据处理等多种场景的高级编程语言。Java由Sun公司于1995年推出，现在由Oracle公司维护和发展。Java最大的特点是“一次编写，到处运行”，这意味着开发者只需要编写一次Java代码，即可在支持Java虚拟机（JVM）的任何平台上运行，无需针对每个平台单独编译。
+Java语言特性包括面向对象、安全性、健壮性、高性能和可移植性。Java类库丰富，涵盖网络、数据库连接、多线程、图形用户界面开发等多个领域。
+本系统是基于Java Web技术构建的，也使用了基于Java的一些Web框架，如Spring Framework、Spring MVC、MyBatis等Java EE技术栈。 
+2.前端
+JSP（JavaServer Pages）： JSP是一种基于Java技术的服务器端脚本语言，主要用于开发动态网页。JSP页面可以结合HTML，允许开发人员在HTML页面中嵌入Java代码和表达式，以便在服务器端处理动态内容生成。JSP文件经过JSP容器解析后转化为Servlet，然后由Servlet生成动态网页内容返回给客户端浏览器。在本项目中JSP作为构建系统的一部分，被用于呈现动态网页界面，并处理用户请求与服务器之间的交互。
+系统用到其他前端技术如：JavaScript、JQuery 、Twitter Bootstrap等。
+3.数据库
+MySQL是一款开源的关系型数据库管理系统（RDBMS），由瑞典MySQL AB公司开发，目前隶属于Oracle公司。MySQL以其稳定、可靠、高效和易于管理的特性，在全球范围内被广泛应用，尤其适合网站、Web应用以及嵌入式应用的数据库存储解决方案。
+MySQL支持标准的，可以处理大量数据，并具有良好的可伸缩性。MySQL提供的特性包括但不限于：
+支持多种存储引擎，如InnoDB（支持事务处理和行级锁定）、MyISAM（快速读取）等，可以根据不同应用场景选择合适的存储引擎。
+提供ACID事务支持，保证数据的一致性和可靠性。
+支持多用户并发访问，有完善的权限管理和安全性控制。
+支持跨平台运行，可在Windows、Linux等多种操作系统环境下使用。
+具备良好的备份恢复机制，可通过多种方式进行数据备份和还原操作。
+在项目中，MySQL作为系统的数据库平台，承载了系统中所有的数据存储和查询需求，为系统的高效稳定运行提供了有力的数据支持。
+4.容器
+Tomcat容器是一种开源的轻量级应用服务器，它主要用于部署和运行基于Java Servlet和JavaServer Pages (JSP) 技术构建的Web应用程序。Tomcat是由Apache软件基金会管理的项目，是Java Servlet和JSP规范的官方参考实现，也就是说，它是Java Web开发中一种标准的Servlet容器。
+在Web应用程序部署到Tomcat容器后，容器负责监听HTTP请求，根据请求的URL路由规则，将请求分配给相应的Servlet进行处理。Servlet可以生成动态内容，并通过Tomcat容器将响应返回给客户端浏览器。
+
+
+(五)系统运行环境
+1.软件环境
+名称	详细要求
+操作系统	Linux
+JAVA环境	JDK 1.7+ 系列
+数据库	MySQL
+部署服务器	Tomcat7.0+
+表1-5-1软件环境
+2.硬件环境
+名称	详细要求
+网络环境	统计局内网+外网
+客户端PC机	1GHz以上的CPU，100G以上硬盘，2G以上的内存，100M网卡、显示器(支持1024x768 32位色)；
+客户手机端	Android5.0以上手机
+应用服务器	PC Server CPU：2.13GHZ*4核心，内存：16G，硬盘：500G，1G网卡
+数据库服务器	PC Server CPU：2.13GHZ*4核心，内存：16G，硬盘：500G，1G网卡
+表1-5-2 硬件环境
+
+
+二、需求分析
+(一)系统业务总体需求
+从满足调查统计业务工作职能的角度出发，项目将建设一个满足统计局常规调查的业务系统，其中重点解决常规调查中各科室调查对象与指标不一致、工作量巨大、数据分散、核对困难、历史数据查找困难等问题。
+根据对系统应用的调研以及各个部门的需求分析，通过高内聚、松耦合、模块复用的原则，我们为系统细化为以下几个大模块：
+序号	功能模块	功能描述
+1	问卷管理	主要是能够对问卷的模板进行设计，能够对问卷进行权限的控制与发布。
+2	项目管理	系统对项目进行管理与维护，用户可以在自己权限范围内进行项目的添加与维护。项目数据的维护是问卷等数据创建的基础。
+3	样本管理	对问卷调查的调查对象即样本进行分类管理与维护。
+4	调查员管理	对调查员信息管理以及调查员任务管理
+5	填报过程管理	对任务开始调查到结束的时间段内填报情况的管理
+6	基础数据管理	系统运行的基础，包括对系统的基础数据进行管理，包括对系统菜单的设置，包括对系统用户权限的设置。
+表2-1-1 需求功能模块
+(二)系统功能需求分析
+1.项目管理
+项目管理是对一次调查任务进行管理与维护。管理员可以对项目进行操作。
+模块	功能点
+项目管理	新建、删除、修改、查询、查看、发布项目
+	项目审核
+	项目分析
+表2-2-1 项目管理
+2.报表管理
+报表数据是统计局多个业务科室工作中需要使用的数据统计工具。
+模块	功能点
+报表管理	基础数据管理
+	报表定制
+	数据填写
+	数据查询
+表2-2-2 报表管理
+3.填报过程管理
+填报过程管理是对任务开始调查到结束的时间段内填报情况的管理。
+模块	功能点
+填报过程管理	奖励管理
+	通知管理
+	填报历史查询
+	批量录入
+	补充样本
+	数据审核
+表2-2-3 填报过程管理
+4.调查员管理
+调查员管理是对调查员信息管理以及调查员任务管理。
+模块	功能点
+调查员管理	调查员管理
+	调查员任务管理
+表2-2-4 调查员管理
+5.问卷管理
+问卷管理主要是针对问卷基本信息的管理以及问卷生成的管理。
+模块	功能点
+问卷管理	问卷基本信息设置
+	问卷题目管理
+	问卷题目与样本属性关联
+	问卷逻辑设置
+	问卷选项控制
+	问卷预览
+表2-2-5 问卷管理
+6.样本管理
+样本管理主要是对问卷调查的调查对象进行分类管理与维护。
+模块	功能点
+样本管理	样本列表
+	新增样本
+	样本账号管理
+	抽样框管理
+	样本修改记录
+	黑名单列表
+表2-2-6 样本管理
+7.基础数据管理
+基础数据管理主要是对样本元数据管理、样本属性管理、样本数据管理、层级管理、用户管理、角色管理、权限管理、字典管理。
+模块	功能点
+基础数据管理	样本属性管理
+	样本元数据管理
+	样本数据字典管理
+	角色管理
+	用户管理
+	权限管理
+表2-2-7 基础数据管理
+
+三、系统总体设计
+(一)业务流程图
+
+图3-1-1 业务流程
+第一层：管理员可以进行系统用户、角色、权限的分配，并初始化数据；
+第二层：调查员可以进行报表与问卷的制定，并且可以针对不同报表进行抽样框的设置与抽样，将报表指定给相关调查对象填写；
+第三层：调查对象进行报表填写与问卷填报；
+第四层：调查员可以对提交的数据进行审核、汇总分析，达到调查的目的。
+(二)系统逻辑架构图
+
+图3-2-1 系统逻辑架构
+系统提供报表和问卷设计功能。由区统计局设计报表和问卷，然后依据相关制度在对象管理子系统和名录库管理子系统中选择抽样框以及抽样方式从中抽取调查对象，若不在候选库内，允许用户自定义添加。根据不同的调查任务，数据调查子系统通过电脑渠道发布任务到调查对象，由调查对象填报数据。
+(三)系统结构图
+
+图3-3-1 系统结构
+(四)技术架构设计
+1.体系结构
+本系统的体系结构如下：
+
+图3-4-1 体系结构
+2.技术总体结构模型图
+
+图3-4-2 技术总体结构
+(五)数据库设计
+本系统采用开源关系型数据库MySQL作为系统的数据库平台，遵守数据库设计规范，采用标准SQL语句，以便系统的扩展与运维。
+1.模型图
+
+图3-5-1 数据库设计模型图
+
+
+2.核心业务表格清单
+名称	代码
+元数据	t_metadata
+单题选择类型题表	t_select_type_question
+填空题表	t_fill_question
+奖品记录表	t_prize_records
+审核结果表	t_audit_results
+批量填报记录表	t_batch_filling_records
+抽样主表	t_sampling_main
+抽样结果表	t_sampling_results
+抽样记录表	t_sampling_records
+数据审核条件表	t_audit_conditions
+数据审核记录表	t_audit_records
+文字说明题表	t_text_description_question
+样本信息表	t_sample_info
+样本属性修改记录表	t_sample_attribute_update_records
+样本属性值表	t_sample_attribute_value
+样本类型	t_sample_type
+样本类型-元数据管理表	t_sample_type_metadata
+样本账号表	t_sample_account
+联动题下拉选择表	t_linkage_drop_down_selection
+联动题表	t_linkage_question
+表格题表	t_form_question
+调查员任务(调查员)-样本关系表	t_investigator_task_sample_relation
+调查员任务-调查员关系表	t_investigator_task_investigator_relation
+调查员任务主表	t_investigator_task_main
+调查员表	t_investigator
+调查项目主表	t_project_main
+调查项目审核记录	t_project_audit_records
+调查项目配置表-问卷主表关系表	t_project_config
+通知记录表	t_notice_records
+问卷-题目管理表	t_questionnaire_question
+问卷主表	t_questionnaire_main
+问卷子问题表	t_questionnaire_sub_question
+问卷答案表	t_questionnaire_answer
+问卷选项表	t_questionnaire_options
+黑名单表	t_black_list
+表3-5-2 数据库设计表清单
+
+
+
+3.部分核心业务表设计
+以下列出部分关键业务核心表的设计
+调查员表(t_investigator)
+名称	代码	数据类型(长度)
+调查员表ID	id	varchar(64)
+姓名	name	varchar(30)
+性别	sex	char(1)
+手机号	phone	varchar(11)
+编号	code	varchar(80)
+隶属统计局	subjection	varchar(80)
+街道	street	varchar(80)
+状态	investigator_status	char(1)
+创建时间	create_time	datetime
+创建人	create_by	varchar(64)
+表3-5-3-1 调查员表列清单
+调查项目主表(t_project_main)
+名称	代码	数据类型(长度)
+调查项目主表ID	id	varchar(64)
+调查员任务主表ID	investigator_task_id	varchar(64)
+抽样主表ID	sampling_id	varchar(64)
+项目编号	code	varchar(20)
+项目名称	name	varchar(80)
+调查范围	range	varchar(80)
+创建单位	company	varchar(100)
+一级分类	type_level1	varchar(20)
+二级分类	type_level2	varchar(20)
+有效开始时间	effective_start_time	datetime
+有效结束时间	effective_end_time	datetime
+状态	investigator_status	char(1)
+节点	investigator_node	varchar(20)
+奖励类型	reward_type	char(1)
+奖励金额	reward_amount	decimal
+奖励数量限制	reward_limit	bigint
+调查员任务类型	investigator_task_type	char(1)
+通知发送设置	notice_set	varchar(10)
+通知发送对象	notice_object	varchar(200)
+创建时间	create_time	datetime
+创建人	create_by	varchar(64)
+表3-5-3-2 调查项目主表列清单
+抽样主表(t_sampling_main)
+名称	代码	数据类型(长度)
+批量填报记录表ID	id	varchar(64)
+调查项目主表ID	project_id	varchar(64)
+样本信息表ID	sample_id	varchar(64)
+问卷主表ID	questionnaire_id	varchar(64)
+填报时间	create_time	datetime
+填报人	create_by	varchar(64)
+表3-5-3-3 抽样主表列清单
+样本信息表(t_sample_info)
+名称	代码	数据类型(长度)
+样本信息表ID	id	varchar(64)
+样本类型ID	sample_type_id	varchar(64)
+状态	sample_status	char(1)
+创建时间	create_time	datetime
+创建人	create_by	varchar(64)
+表3-5-3-4 样本信息表列清单
+问卷主表(t_questionnaire_main)
+名称	代码	数据类型(长度)
+问卷主表ID	id	varchar(64)
+样本类型ID	sample_type_id	varchar(64)
+状态	questionnaire_status	char(1)
+问卷名称	questionnaire_name	varchar(80)
+问卷编号	questionnaire_code	varchar(20)
+开始时间	start_time	datetime
+结束时间	end_time	datetime
+创建时间	create_time	datetime
+创建人	create_by	varchar(64)
+表3-5-3-5 问卷主表列清单
+问卷答案表(t_questionnaire_answer)
+名称	代码	数据类型(长度)
+问卷答案表ID	id	varchar(64)
+问卷主表ID	questionnaire_id	varchar(64)
+样本信息表ID	sample_id	varchar(64)
+答案	answer	varchar(1000)
+创建时间	create_time	datetime
+创建人	create_by	varchar(64)
+表3-5-3-6 问卷答案表列清单
+四、系统详细设计与实现
+(一)登录
+在浏览器中输入网址，输入用户名、密码，点击【登录】，进入系统：
+1.页面展示
+
+图4-1-1 管理登录页
+2.前端jsp关键程序代码如下
+<body>
+<div class="header">
+<!--返显操作结果-->
+    <div id="messageBox" class="alert alert-error">
+        <button data-dismiss="alert" class="close">×</button>
+        <label id="loginError" class="error">${message}</label>
+    </div>
+</div>
+<h1 class="form-signin-heading">统计智慧调查系统</h1>
+<form id="loginForm" action="${ctx}/login" method="post">
+    <label class="input-label" for="username">登录名</label>
+    <input type="text" id="username" name="username" class=" " value="">
+    <label class="input-label" for="password">密码</label>
+    <input type="password" id="password" name="password" class="" value="">
+    <input class="btn" type="submit" value="登 录"/>
+</form>
+</body>
+该登录页面代码包含了基本的用户名和密码输入框，以及一个登录提交按钮，旨在让系统用户通过输入正确的凭证来验证身份并登录系统。
+3.后端Java关键程序代码如下
+/**
+ * 登录方法
+ * @param request
+ * @param response
+ * @param model
+ * @return
+ */
+@RequestMapping(value = "${adminPath}/login", method = RequestMethod.GET)
+public String login(HttpServletRequest request, HttpServletResponse response, Model model) {
+   Principal principal = UserUtils.getPrincipal();
+   if (logger.isDebugEnabled()){
+      logger.debug("login, active session size: {}");
+   }
+   // 如果已登录，再次访问主页，则退出原账号。
+   if (Global.TRUE.equals(Global.getConfig("notAllowRefreshIndex"))){
+      CookieUtils.setCookie(response, "LOGINED", "false");
+   }
+   // 如果已经登录，则跳转到管理首页
+   if(principal != null && !principal.isMobileLogin()){
+      return "redirect:" + adminPath;
+   }
+   return "modules/sys/sysLogin";
+}
+该核心程序代码主要实现了登录的功能，包含用户认证判断，判断后进行逻辑跳转，跳转返回到登录页面或系统首页。
+
+
+(二)问卷生成子系统
+1.项目管理
+系统对项目进行管理与维护，用户可以在自己权限范围内进行项目的添加与维护。项目数据的维护是问卷等数据创建的基础。
+项目列表页面：
+
+图4-2-1 项目列表页
+2.问卷创建
+创建问卷是问卷生成子系统中的核心功能点，用户可根据需要进行问卷题目的编辑与设置。调查的项目和问卷进行关联，即可开展调查。
+点击【问卷管理】→【问卷列表】：
+
+图4-2-2 问卷列表页
+
+
+(三)报表生成子系统
+创建报表主要是维护报表的相关信息，并且制作报表样式，设置指标、目录以及数据录入的格式。创建报表分为两部分：配置报表信息、设计报表。
+表单设计页面：
+
+图4-3-2 表单设计页
+(四)对象管理子系统
+样本列表显示的所有样本的基本信息，包括：样本编码、样本名称、手机号、层级、样本类型，用户根据需要对样本进行操作。
+点击【样本管理】→【样本列表】，进入样本列表页：
+
+图4-4-1 样本列表页
+(五)名录库管理子系统
+调查员管理列表包括：手机号、登录账号名、调查员、街道。
+调查员管理是调查任务分配的基础，在调查过程中，可以将同一街道的调查样本分配给该街道的调查员。点击【调查员管理】，进入调查员列表页面：
+
+图4-5-1 调查员列表页
+(六)抽样框管理子系统
+抽样框管理子系统是对调查任务抽样规则以及抽样信息的管理。包括：任务编号、样本类型名称、样本分类、样本总数、状态、抽样方法。
+点击【样本管理】→【抽样框管理】，进入抽样框管理页面：
+1.页面展示
+
+图4-6-1 抽样框列表页
+
+2.关键程序代码如下
+/**
+ * 抽样新增-选择样本类型
+ * @param isSupplOrUpdate 新增0、修改1、补充2
+ * @param simplingMainId 抽样id（补充修改）
+ * @param request
+ * @param response
+ * @param model
+ * @return
+ */
+@RequiresPermissions("sample:hdzxdctjSamplingResults:view")
+@RequestMapping(value = "addSample")
+public String addSample(String isSupplOrUpdate,String simplingMainId,                  HttpServletRequest request,HttpServletResponse response, Model model) {
+// 抽样主表参数设置
+   HdzxdctjSimplingMain simplingMain=new HdzxdctjSimplingMain();
+   if("1".equals(isSupplOrUpdate) || "2".equals(isSupplOrUpdate)){
+      simplingMain.setId(simplingMain);
+      simplingMain=simplingMainService.get(simplingMain);
+simplingMain.setSimpTypeId(simplingMain.getSimpleType().getId());
+   }
+   // 查询出所有有效的样本类型
+   List<HdzxdctjSimpleType> simpleTypes = hdzxdctjSimpleTypeService
+         .findList(new HdzxdctjSimpleType());
+   model.addAttribute("simpleTypes", simpleTypes);
+   model.addAttribute("isSupplOrUpdate", isSupplOrUpdate);
+   model.addAttribute("simplingMain", simplingMain);
+   String status = request.getParameter("status");
+   // 判断状态
+   if(StringUtils.isNotEmpty(status)){
+      status = status.equals("return") ? "return" : "returnInfo";
+   }else{
+      status = "return";
+   }
+   // 返回按键控制
+   model.addAttribute("status", status); 
+   return "/hdzxdctj/sample/hdzxdctjSamplingResultsFirst";
+}
+该核心程序代码主要实现了抽样新增-选择样本类型的功能，包括抽样参数设置、查样本类型、设置状态值等，并在成功操作后向用户反馈相应的结果信息，引导用户跳转至列表页面继续后续操作。
+
+(七)数据调查子系统
+1.电脑端调查对象填报
+电脑端调查对象填报，在PC电脑上用浏览器进行问卷填报。
+电脑端问卷填报页面展示：
+
+图4-7-1-1 问卷填报页
+
+
+2.手机端调查对象填报
+扫描电脑端首页的二维码，进入手机登录界面,输入用户名密码进行登录，进入手机问卷填报页面，填报页面展示：
+
+图4-7-2-1 手机端平台首页
+
+
+图4-7-2-2 手机端填报页
+(八)数据智能分析子系统
+1.项目分析
+点击【项目管理】→【项目分析】：
+
+图4-8-1 项目分析列表页
+查询：输入项目名称、项目编号、选择项目归属、创建时间，点击【查询】，可以根据输入的查询条件进行查询。
+2.进度分析
+点击项目后对应的项目分析，进入该项目的项目分析页面（页面默认是项目的进度分析页面）。对正在调查的问卷填报情况的分析，包括填报完成率、每天填报的调查对象总数页面：
+
+图4-8-2 项目分析-进度分析页
+3.频次分析
+对已填报的问卷进行单个问题选项汇总分析，点击【频次分析】：
+
+图4-8-3 项目分析-频次分析页
+4.数据详情
+对调查对象填写问卷各问题的答案详情的分析展示，点击【数据详情】进入详情列表页，点击数据详情可查看问卷详情：
+
+图4-8-4 项目分析-数据详情列表页
+
+
+5.关键程序代码如下
+/**
+ * 项目分析
+ * @param projectMain
+ * @param request
+ * @param response
+ * @param model
+ * @return
+ */
+@RequiresPermissions("project:projectMain:view")
+@RequestMapping(value = "analysis")
+public String analysis(ProjectMain projectMain, HttpServletRequest request, HttpServletResponse response,
+      Model model) {
+/** 取抽样用户ID */
+   String simpleUserId = request.getParameter("simpleUserId");
+   String projectId = projectMain.getId();
+   model.addAttribute("projectMain", projectMain);
+
+   /** 根据项目查询问卷 */
+   List<String> quesIds = projectAnalysisService.findIds(projectId);
+   Map<String, String> map = new HashMap<String, String>();
+   map.put("quesId", quesIds.get(0));
+   map.put("projectId", projectId);
+   map.put("simpleUserId", simpleUserId);
+   if ("3".equals(projectMain.getReportingMethods())) {
+      List simpleInfos = projectAnalysisService.getSample(projectMain);
+      model.addAttribute("simpleInfos", simpleInfos);
+   }
+   /** 柱状图形数据 */
+   List<String> jd = projectAnalysisService.getjd(map);
+   List<Integer> list = new ArrayList<Integer>();
+   list.add(Integer.parseInt(jd.get(0)));
+
+   /** 当项目填报类型为匿名时,未完成为0 */
+   if ("2".equals(projectMain.getReportingMethods()) 
+         || "3".equals(projectMain.getReportingMethods())
+         || "4".equals(projectMain.getReportingMethods())) {
+      list.add(0);
+   } else {
+int v = Integer.parseInt(jd.get(1)) - Integer.parseInt(jd.get(0));
+      list.add(v);
+   }
+   String data = JacksonUtils.converBean2Json(list);
+   /** 线性图形数据 */
+   List jdline = projectAnalysisService.getjdline(map);
+   List<String> time = new ArrayList<String>();
+   List<Integer> count = new ArrayList<Integer>();
+   for (Map line : jdline) {
+      time.add(String.valueOf(line.get("time")));
+      count.add(Integer.parseInt(line.get("count").toString()));
+   }
+/** json转换 */
+   String times = JacksonUtils.converBean2Json(time);
+   String counts = JacksonUtils.converBean2Json(count);
+/** 设置页面返回值 */
+   request.setAttribute("simpleUserId", simpleUserId);
+   request.setAttribute("times", times);
+   request.setAttribute("counts", counts);
+   request.setAttribute("maxNum", Integer.parseInt(jd.get(1)));
+   request.setAttribute("data", data);
+   request.setAttribute("projectMain", projectMain);
+   /** 返回页面 */
+   return "hdzxdctj/project/project_analysis";
+}
+该核心程序代码主要实现了对项目中的问卷进行分析的功能，查询出进度、频次等数据，并设置柱状图和线性图的数据。在成功操作后向用户反馈相应的结果信息后，引导用户跳转至分析展示页面。
+
+
+(九)综合管理子系统
+1.基础业务数据管理 
+对系统的样本元数据管理、样本属性管理、样本数据字典管理等，以下是样本元数据列表页面：
+
+图4-9-1-1 样本元数据列表页
+2.系统管理
+对系统基础功能进行管理，包括用户管理、角色管理、机构管理、区域管理、字典管理、菜单管理、日志查询。以下是区域管理页面展示：
+
+图4-9-2-1 区域列表页
+
+
+五、系统测试
+(一)目的
+测试计划为统计智慧调查系统的测试计划。目的在于总结测试阶段的测试情况以及分析测试结果，分析系统是否满足需求规定的要求；测试范围涵盖了全部的功能项和业务需求；通过对测试过程和结果的定性和定量分析，为系统的投产决策提供科学依据。
+(二)测试环境
+硬件配置（服务器端）
+数据库
+服务器	CPU	Intel(R) Xeon(R)E5-2650 v2@2.60Hz 2.59Hz
+	内存	32 GB
+	操作系统	Windows 2008R2 Server Enterprise
+应用服务器	CPU	Intel(R) Xeon(R)E5-2650 v2@2.60Hz 2.59Hz
+	内存	16 GB
+	操作系统	Windows 2008R2 Server Enterprise
+硬件配置（客户端）
+客户端	CPU	2.6 GHz
+	内存	2 GB
+网络环境	局域网
+软件配置
+数据库服务器
+应用服务器	操作系统	Windows 2008R2 Server Enterprise
+	应用软件	Tomcat5.5.23
+	数据库	MySQL
+客户端	操作系统	Windows7
+	浏览器	360极速浏览器/IE
+	测试软件	JMeter
+PAD端	系统	安卓
+手机端	系统	安卓
+表5-2-1 环境配置
+
+(三)单元测试
+通过单元测试，开发工程师使用静态分析、动态测试，开发工程师编写功能代码，同时为自己的代码执行单元测试。
+(四)集成测试
+1.功能模块测试
+模块名称	预期结果	测试结果
+所有功能模块	所有功能模块功能正常实现	通过
+表5-4-1 功能模块测试
+
+2.业务流程测试
+测试项	测试过程	预期结果	测试结果
+数据流程	用户登录系统，创建样本分类，创建样本字典，打开创建样本元数据界面，打开创建样本属性。创建样本。	在创建过程中，系统可以再创建元数据过程中读物样本字典，创建属性过程中读取样本分类跟样本元数据。成功创建样本属性，流程正确。用户在创建样本时成功使用样本属性，流程正确。	通过
+项目流程	用户登录系统后，创建项目，根据项目是否匿名，是否奖励，是否直属进行设置	系统中根据项目的基本设置组成项目的创建流程。是否匿名，决定是否显示抽样框，是否直属选择是否选择调查员任务，是否奖励选择是否有奖励设置,流程正确	通过
+表5-4-2 业务流调测试
+
+
+(五)性能测试
+1.用户登录
+访问用户登录页面使用用户名正确登录，执行5次结果取平均值。
+登录事务并发执行情况
+并发用户数	平均响应时间(秒)	最小响应时间（秒）	最大响应时间（秒）	标准偏差	事务执行成功率
+200	2.329	0.588	6.62	1.332	100%
+表5-5-1 登录事务并发执行情况
+2.问卷提交
+访问系统登录用户点击问卷提交按钮，执行5次结果取平均值。
+登录用户进入问卷提交事务并发执行情况
+并发用户数	平均响应时间(秒)	最小响应时间（秒）	最大响应时间（秒）	标准偏差	事务执行成功率
+200	3.563	2.015	7.462	1.121	100%
+表5-5-2 问卷提交事务并发执行情况
+3.数据审核
+访问系统，项目审核，执行5次结果取平均值。
+打开项目审核事务并发执行情况
+并发用户数	平均响应时间(秒)	最小响应时间（秒）	最大响应时间（秒）	标准偏差	事务执行成功率
+200	1.421	0.1	6.163	1.367	100%
+表5-5-3 项目审核事务并发执行情况
+
+
+(六)其他测试
+1.功能性
+测试内容	基本要求	测试结果
+准确性	1. 各功能模块功能正确实现；
+2. 功能模块间流程运行正常。	通过
+信息数据的安全	1.信息数据的安全：对数据库中密码字段进行加密处理；
+2.数据库使用长度及组合复杂的密码。	通过
+运行安全	系统防止计算机病毒的入侵。	通过
+表5-6-1 功能性测试情况
+2.可靠性
+测试内容	基本要求	测试结果
+断电	客户机掉电或强行关机后重启机器，不丢失历史性数据。	通过
+重新启动	客户机死机后，重启机器，不丢失历史性数据。	通过
+容错性	对于异常的数据录入，此系统能够给出良好的提示页面，并且可在提示之后继续操作。	通过
+表5-6-2 可靠性测试情况
+3.可维护性
+测试内容	基本要求	测试结果
+系统日志	记录系统运行状态日志，同时记录系统出现故障时的错误原因。	通过
+表5-6-3 可维护性测试情况
+4.可移植性
+测试内容	基本要求	测试结果
+相同系统迁移	系统从一台服务器迁移到另外一台相同环境服务器的能力。	通过
+不同系统间进行迁移	系统从windows服务器迁移到Linux服务器，并且正常运行。	通过
+表5-6-4 可移植性测试情况
+5.易用性
+测试内容	基本要求	测试结果
+易操作	对错误操作有相应提示，根据提示可以纠正错误操作。	通过
+易学性	产品有用户手册或者在线帮助文档，且文字表述正确、美观。	通过
+吸引性	系统重要业务功能应放到首页醒目位置。	通过
+表5-6-5 易用性测试情况
+(七)测试结论
+在对系统进行了单元测试、集成测试、性能测试、其他测试，验证了系统完全实现了用户所要求的各种功能和设计，并在此基础上提出了系统的创新点，具备了通过网络系统完成用户业务的能力。同时本系统具有以下特点：
+1.系统架构合理。该系统采用先进的B/S架构，并支持相应的数据库，系统结构清晰明确，可满足系统的要求。
+2.功能全面。该软件由名录库、我的任务、下级起报、本级起报、制度报表、报表查询等模块组成，涵盖了诸多功能点。保证了“数据审核流程”、“数据汇总流程”等业务流程在系统中的正常应用。 
+3.系统可靠性好。有完善的数据校验机制，对用户输入不符合要求的数据，给出了简洁、准确的提示信息。
+
+
+六、结束语
+在论文中，通过对统计智慧调查系统的深入研究与实践，我们成功设计并实现了一个集问卷生成、数据采集、智能分析和综合管理于一体的高效信息系统。系统以国家统计局提出的“三个提高”原则为导向，顺应“智慧统计”信息化建设的趋势，充分利用了运营商网络和互联网工具的优势，大大提升了调查统计工作的效率与科学性，实现了调查数据的实时上报和便捷管理。
+总的来说，本研究通过设计与实现基于JSP的统计智慧调查系统，成功应对了传统统计工作面临的各方面挑战，展现了信息化技术在统计业务领域的强大应用潜力。在未来，我们将持续关注技术发展趋势，不断优化和完善系统功能，助力我国统计信息化事业的长远发展。
+
+
+致谢
+首先，向在我完成这篇学位论文过程中给予无私指导和宝贵建议的论文指导老师表示衷心的感谢。从论文选题、方案设计直至最后的定稿，李老师对论文进行多次指导论证修改，让我得以顺利完成这一研究项目。
+同时，我也要感谢学校的各位老师和同学以及同事在各方面的帮助，在技术上、业务上，还有实践中都给予了很多的帮助，在这里，对他们的帮助表示深深的谢意。
+此外，我还要特别向开源社区中Spring、MyBatis、JeeSite等一系列优秀框架的开发者和维护者们致敬。正是得益于这些开源技术背后的卓越贡献者们的智慧结晶，才使得我们的系统能够以高效、稳定、易用的方式服务于统计调查工作。
+
+
+参考文献
+[1]罗胜强,姜嬿.管理学问卷调查研究方法[M].重庆大学出版社:201406.428.
+[2]王培刚,梁静,张刚鸣.多元统计分析与SAS实现[M].武汉大学出版社:202011.338.
+[3]葛一鸣,郭超.实战Java高并发程序设计[M].电子工业出版社:201511.352.
+[4]吴周霄,郑向阳.基于JSP技术的动态网页开发技术[J].信息与电脑(理论版),2018,(08):13-15.
+[5]王玉英.基于JSP的MySQL数据库访问技术[J]. 代计算机(专业版),2010(14):67-70.
+[6]肖睿;程宁;田崇峰;金志雄;杜毅.MySQL数据库应用技术及实战[M].人民邮电出版社:201801.177.
+[7]韩路彪.看透Spring MVC[M].机械工业出版社:201511.464.
+[8]徐雯,高建华.基于Spring MVC及MyBatis的Web应用框架研究[J].微型电脑应用,2012,28(07):1-4+10.
