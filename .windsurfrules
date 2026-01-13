@@ -5,28 +5,23 @@
 
 **使用说明**：每次回复结束前，请运行此检查点脚本以获取用户的后续指令。
 
-## 脚本路径
+## 调用命令（必读）
 
-`c:\Users\Cold\.windsurf\extensions\ask-continue.ask-continue-2.8.9\ac.js`
+**重要：必须在扩展安装目录执行，不是工作区目录！**
 
-## 调用命令
+**Cwd（工作目录）**: `c:\Users\Cold\.windsurf\extensions\ask-continue.ask-continue-2.8.9`
+**命令**: `node ac.js "任务完成情况" "工作区路径" [端口号]`
 
-**Windows (cmd)**:
-```
-cmd /c node ac.js "任务完成情况" "工作区路径" [端口号]
-```
-
-**Linux/macOS**:
-```
-node ac.js "任务完成情况" "工作区路径" [端口号]
-```
-
-**Cwd (工作目录)**: `c:\Users\Cold\.windsurf\extensions\ask-continue.ask-continue-2.8.9`
+**说明**：
+- ac.js 脚本位于：`c:\Users\Cold\.windsurf\extensions\ask-continue.ask-continue-2.8.9\ac.js`
+- Cwd 是扩展安装目录，不是工作区目录
+- 工作区路径作为参数传递，不是 Cwd
+- 第一次执行就要用正确的 Cwd，避免 MODULE_NOT_FOUND 错误
 
 ## 参数说明
 - **任务完成情况**: 描述当前任务的完成状态
 - **工作区路径**: 当前工作区的绝对路径
-- **端口号**: 可选，从工作区根目录的 `.ask_continue_port` 文件读取
+- **端口号**: 从工作区根目录的 `.ask_continue_port` 文件读取
 
 ## 端口号获取
 
