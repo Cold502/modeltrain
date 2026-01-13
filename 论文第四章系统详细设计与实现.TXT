@@ -4,7 +4,7 @@
 
 （一）用户认证与权限管理模块
 
-用户认证与权限管理是系统安全的基石，负责用户身份验证、访问控制和会话管理。本模块采用JWT[12]（JSON Web Token）双令牌机制，在保证安全性的同时提供良好的用户体验。
+用户认证与权限管理是系统安全的基石，负责用户身份验证、访问控制和会话管理。本模块采用JWT[24]（JSON Web Token）双令牌机制，在保证安全性的同时提供良好的用户体验。
 
 1. 登录功能实现
 
@@ -42,7 +42,7 @@ JWT双令牌机制是系统安全架构的核心，采用短期Access Token和�
 
 1. 模型提供商预置配置
 
-系统预置了8个主流LLM提供商[12]，分为本地部署和云端API两类。
+系统预置了8个主流LLM提供商[24]，分为本地部署和云端API两类。
 
 本地部署类提供商：
 
@@ -64,7 +64,7 @@ DeepSeek是国内AI公司，提供高性能且性价比极高的模型。DeepSee
 
 302.AI是AI聚合平台，一个Key访问多个厂商模型。支持OpenAI、Claude、Gemini等多个厂商，统一的API格式简化接入，价格透明按需计费，提供免费额度，适合快速接入多种模型。默认端点为https://api.302.ai/v1。
 
-提供商配置数据结构在代码中定义为PROVIDERS常量，存储各提供商的元数据，包括id、name、description、api_url、requires_api_key、models_endpoint、icon_url、type等字段。前端通过GET /api/providers接口获取提供商列表[13]。
+提供商配置数据结构在代码中定义为PROVIDERS常量，存储各提供商的元数据，包括id、name、description、api_url、requires_api_key、models_endpoint、icon_url、type等字段。前端通过GET /api/providers接口获取提供商列表[2]。
 
 2. 模型列表动态刷新机制
 
@@ -84,7 +84,7 @@ DeepSeek是国内AI公司，提供高性能且性价比极高的模型。DeepSee
 
 提交后前端发送POST请求到/api/model-configs，请求体包含配置的所有字段。后端创建ModelConfig记录，关联当前用户ID。
 
-读取配置：配置列表页面前端使用Element Plus[11]的Table组件展示用户的所有模型配置。GET /api/model-configs接口返回配置列表，包含ID、名称、提供商、模型、创建时间、更新时间、状态。列表功能包括分页（每页10条）、搜索（按名称或提供商筛选）、排序（按创建时间或名称）、操作按钮（编辑、删除、测试连接）。
+读取配置：配置列表页面前端使用Element Plus[26]的Table组件展示用户的所有模型配置。GET /api/model-configs接口返回配置列表，包含ID、名称、提供商、模型、创建时间、更新时间、状态。列表功能包括分页（每页10条）、搜索（按名称或提供商筛选）、排序（按创建时间或名称）、操作按钮（编辑、删除、测试连接）。
 
 更新配置：点击"编辑"按钮弹出配置表单对话框，预填已有数据。用户修改后提交，发送PUT请求到/api/model-configs/{id}。后端更新对应记录，updated_at字段自动更新为当前时间。
 
@@ -276,7 +276,7 @@ JSON导出结构：包含session对象（id、title、created_at、updated_at、
 
 （七）训练任务管理模块
 
-训练任务管理模块负责模型微调任务的创建、监控和结果管理。本系统集成LLaMA-Factory[7]作为训练引擎，提供简化的训练配置界面。
+训练任务管理模块负责模型微调任务的创建、监控和结果管理。本系统集成LLaMA-Factory[27]作为训练引擎，提供简化的训练配置界面。
 
 1. 训练任务状态管理
 
@@ -298,7 +298,7 @@ LLaMA-Factory是一个强大的模型微调框架，支持多种模型和训练�
 
 自动启动LLaMA-Factory：系统启动时检测LLaMA-Factory目录是否存在，路径为项目根目录的LLaMA-Factory子目录。如果目录存在，在后台启动LLaMA-Factory Web UI，使用subprocess.Popen执行python src/webui.py命令。LLaMA-Factory使用Gradio构建界面，默认端口7860。启动成功后在本系统界面提供快捷链接，点击后在新标签页打开LLaMA-Factory界面。
 
-训练任务配置：用户在本系统界面配置训练参数，简化版配置只包含最常用的参数。基础参数包括模型选择（从支持的模型列表选择）、数据集选择（从已上传的数据集选择）、输出目录（训练结果保存路径）。训练参数包括学习率（默认5e-5）、训练轮数epoch（默认3）、批次大小batch_size（默认4）、梯度累积步数（默认4）。LoRA参数包括LoRA秩rank（默认8）、LoRA alpha（默认16）、目标模块（默认q_proj,v_proj）。高级参数可在LLaMA-Factory界面中调整，如优化器（默认使用Adam[14]）、学习率调度器scheduler、预热步数warmup等。训练过程中会自动应用Dropout[16]等正则化技术防止过拟合。
+训练任务配置：用户在本系统界面配置训练参数，简化版配置只包含最常用的参数。基础参数包括模型选择（从支持的模型列表选择）、数据集选择（从已上传的数据集选择）、输出目录（训练结果保存路径）。训练参数包括学习率（默认5e-5）、训练轮数epoch（默认3）、批次大小batch_size（默认4）、梯度累积步数（默认4）。LoRA参数包括LoRA秩rank（默认8）、LoRA alpha（默认16）、目标模块（默认q_proj,v_proj）。高级参数可在LLaMA-Factory界面中调整，如优化器（默认使用Adam[13]）、学习率调度器scheduler、预热步数warmup等。训练过程中会自动应用Dropout[14]等正则化技术防止过拟合。
 
 配置转换：系统将用户配置转换为LLaMA-Factory的YAML格式。YAML文件包含model_name_or_path、dataset、output_dir、learning_rate、num_train_epochs、per_device_train_batch_size、lora_rank等字段。保存YAML文件到configs目录，文件名为任务ID.yaml。同时生成启动脚本，调用llamafactory-cli train命令传入YAML文件路径。
 

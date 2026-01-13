@@ -141,6 +141,7 @@ def main():
     output_path = os.path.join(os.path.dirname(__file__), '论文初版.docx')
     doc.save(output_path)
     print(f"\n论文Word文档已生成: {output_path}")
+    print("文件名: 论文初版.docx")
     print("请打开文档检查格式，如有需要可手动调整")
 
 if __name__ == '__main__':

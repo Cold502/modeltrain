@@ -4,7 +4,7 @@
 
 （一）部署架构设计
 
-系统采用前后端分离架构，支持灵活的部署方式。前端使用Vue 3构建单页应用，编译为静态文件，通过Nginx提供HTTP服务。后端使用FastAPI构建RESTful API，通过Uvicorn ASGI服务器运行。数据库使用SQLite存储业务数据，支持迁移到PostgreSQL[10]等生产级数据库。LLM推理服务支持Ollama本地部署或OpenAI API远程调用。
+系统采用前后端分离架构，支持灵活的部署方式。前端使用Vue 3构建单页应用，编译为静态文件，通过Nginx提供HTTP服务。后端使用FastAPI构建RESTful API，通过Uvicorn ASGI服务器运行。数据库使用SQLite存储业务数据，支持迁移到PostgreSQL[1]等生产级数据库。LLM推理服务支持Ollama本地部署或OpenAI API远程调用。
 
 1. 系统架构层次
 
