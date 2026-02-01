@@ -32,16 +32,16 @@
 
 ```json
 {
-  "should_continue": true,
-  "user_instruction": "用户的后续指令",
-  "image_paths": ["图片路径"]
+  "is_keepWorking": true,
+  "nextTask": "用户的后续指令",
+  "attachments": ["图片路径"]
 }
 ```
 
-- `should_continue`: true表示继续执行，false表示任务完成
-- `user_instruction`: 用户提供的后续指令
-- `image_paths`: 用户提供的参考图片路径
+- `is_keepWorking`: true表示继续执行，false表示任务完成
+- `nextTask`: 用户提供的后续指令
+- `attachments`: 用户提供的参考图片路径
 
-当 `should_continue` 为 `false` 时，任务已完成。
+当 `is_keepWorking` 为 `false` 时，任务已完成。
 脚本运行后会每20秒输出状态，等待用户响应。
 你不需要任何指令结果检查，也不需要任何思考，只需要等待程序执行完毕即可。

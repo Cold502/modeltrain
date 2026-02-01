@@ -69,6 +69,13 @@
           <template #title>模型配置</template>
         </el-menu-item>
 
+        <el-menu-item index="/dashboard/dify">
+          <el-icon>
+            <Grid/>
+          </el-icon>
+          <template #title>Dify应用</template>
+        </el-menu-item>
+
         <el-menu-item v-if="isAdmin" index="/dashboard/admin">
           <el-icon>
             <UserFilled/>
@@ -137,7 +144,8 @@ import {
   Moon,
   Sunny,
   Fold,
-  Expand
+  Expand,
+  Grid
 } from '@element-plus/icons-vue'
 
 export default {
@@ -155,7 +163,8 @@ export default {
     Moon,
     Sunny,
     Fold,
-    Expand
+    Expand,
+    Grid
   },
   setup() {
     const store = useStore()

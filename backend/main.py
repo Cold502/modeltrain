@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager  # 用于新版 lifespan
 import subprocess  # 启动子进程（如 LLaMA-Factory）
 
 from app.database import SessionLocal, engine, get_db  # 数据库会话工厂与依赖
-from app.api import auth, chat, model, training, admin, model_config, playground  # 各业务路由模块
+from app.api import auth, chat, model, training, admin, model_config, playground, dify  # 各业务路由模块
 # 导入所有模型以确保 Base.metadata.create_all 能创建所有表
 from app.models import user, chat as chat_models, model as model_models, model_config as model_config_models, training as training_models
 from app.utils.auth import create_admin_user  # 管理员初始化工具
@@ -260,7 +260,8 @@ app.include_router(model.router, prefix="/api/model", tags=["模型"])
 app.include_router(training.router, prefix="/api/training", tags=["训练"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理"])
 app.include_router(model_config.router, prefix="/api", tags=["模型配置"])
-app.include_router(playground.router, prefix="/api", tags=["模型测试"])
+app.include_router(playground.router, prefix="/api/playground", tags=["Playground"])
+app.include_router(dify.router, prefix="/api/dify", tags=["Dify"])
 
 # 静态文件服务
 # 作用：

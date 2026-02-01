@@ -77,6 +77,12 @@ const routes = [
                 component: SystemPrompt
             },
             {
+                path: 'dify',
+                name: 'DifyManage',
+                component: () => import('@/views/DifyManage.vue'),
+                meta: {requiresAuth: true}
+            },
+            {
                 path: 'admin',
                 name: 'AdminPanel',
                 component: AdminPanel,

@@ -40,6 +40,20 @@
         <!-- 聊天区域头部 -->
         <div class="chat-header">
           <div class="header-title">{{ currentSession.title }}</div>
+          <div class="header-actions">
+            <el-dropdown @command="handleExportFormat" trigger="click">
+              <el-button type="primary" :icon="Download" size="default">
+                导出会话<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="txt">导出为TXT</el-dropdown-item>
+                  <el-dropdown-item command="md">导出为Markdown</el-dropdown-item>
+                  <el-dropdown-item command="json">导出为JSON</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
 
         <!-- 消息列表 -->
@@ -115,7 +129,16 @@
         <div class="chat-input-area">
           <!-- 输入框上方的控制栏 -->
           <div class="input-controls">
-            <div class="model-selector">
+            <div class="mode-selector">
+              <span class="control-label">对话模式:</span>
+              <el-radio-group v-model="chatMode" size="default" :disabled="sending">
+                <el-radio-button label="normal">普通对话</el-radio-button>
+                <el-radio-button label="rag">RAG检索</el-radio-button>
+                <el-radio-button label="workflow">工作流</el-radio-button>
+              </el-radio-group>
+            </div>
+            
+            <div v-if="chatMode === 'normal'" class="model-selector">
               <span class="control-label">对话模型:</span>
               <el-select
                   v-model="selectedModel"
@@ -132,7 +155,52 @@
                 />
               </el-select>
             </div>
-            <div class="prompt-selector">
+            
+            <div v-if="chatMode === 'rag'" class="dataset-selector">
+              <span class="control-label">知识库:</span>
+              <el-select
+                  v-model="selectedDatasets"
+                  placeholder="请选择知识库"
+                  size="default"
+                  multiple
+                  collapse-tags
+                  :disabled="sending || loadingDatasets"
+              >
+                <el-option
+                    v-for="dataset in availableDatasets"
+                    :key="dataset.id"
+                    :label="dataset.name"
+                    :value="dataset.id"
+                />
+              </el-select>
+            </div>
+            
+            <div v-if="chatMode === 'workflow'" class="workflow-selector">
+              <span class="control-label">工作流:</span>
+              <el-select
+                  v-model="selectedWorkflow"
+                  placeholder="请选择工作流应用"
+                  size="default"
+                  :disabled="sending"
+              >
+                <el-option
+                    v-for="workflow in availableWorkflows"
+                    :key="workflow.id"
+                    :label="workflow.name"
+                    :value="workflow.id"
+                />
+              </el-select>
+              <el-button 
+                type="text" 
+                size="small" 
+                @click="openDifyToCreateWorkflow"
+                style="margin-left: 8px"
+              >
+                在Dify创建
+              </el-button>
+            </div>
+            
+            <div v-if="chatMode === 'normal'" class="prompt-selector">
               <span class="control-label">提示词:</span>
               <el-select
                   v-model="selectedPrompt"
@@ -205,7 +273,7 @@ import {useStore} from 'vuex'
 import {ElMessageBox, ElMessage} from 'element-plus'
 import {message} from '../utils/message'
 import {ChatDotRound, Delete, Avatar, Reading, ArrowDown, Download, Refresh} from '@element-plus/icons-vue'
-import {chatAPI, modelAPI, modelConfigAPI} from '../utils/api'
+import {chatAPI, modelAPI, modelConfigAPI, difyAPI} from '../utils/api'
 import {marked} from 'marked'
 import hljs from 'highlight.js'
 import api from '../utils/api'
@@ -234,6 +302,14 @@ export default {
     const isStreaming = ref(true)
     const sending = ref(false)
     const messageList = ref(null)
+
+    // Dify相关状态
+    const chatMode = ref('normal')
+    const selectedDatasets = ref([])
+    const selectedWorkflow = ref('')
+    const availableDatasets = ref([])
+    const availableWorkflows = ref([])
+    const loadingDatasets = ref(false)
 
     // 跟踪正在进行的流式响应
     const activeStreamingMessages = new Map() // sessionId -> { messageId, content, isStreaming }
@@ -341,6 +417,37 @@ export default {
         ElMessage.warning('加载系统提示词失败，请检查网络连接')
         availablePrompts.value = []
       }
+    }
+
+    const loadDatasets = async () => {
+      loadingDatasets.value = true
+      try {
+        const response = await difyAPI.getDatasets()
+        const datasets = response.data?.datasets || []
+        availableDatasets.value = datasets
+      } catch (error) {
+        console.error('加载知识库失败:', error)
+        ElMessage.warning('加载Dify知识库失败，请检查Dify服务状态')
+        availableDatasets.value = []
+      } finally {
+        loadingDatasets.value = false
+      }
+    }
+
+    const loadWorkflows = async () => {
+      try {
+        const response = await difyAPI.getWorkflows()
+        const workflows = response.data?.workflows || []
+        availableWorkflows.value = workflows
+      } catch (error) {
+        console.error('加载工作流失败:', error)
+        ElMessage.warning('加载Dify工作流失败，请检查Dify服务状态')
+        availableWorkflows.value = []
+      }
+    }
+
+    const openDifyToCreateWorkflow = () => {
+      window.open('/dify', '_blank')
     }
 
     const loadSessions = async () => {
@@ -499,6 +606,111 @@ export default {
         console.error('下载AI回答失败:', error)
         ElMessage.error('下载失败: ' + error.message)
       }
+    }
+
+    // 导出整个会话
+    const handleExportFormat = (format) => {
+      if (!currentSession.value || !currentSession.value.messages || currentSession.value.messages.length === 0) {
+        ElMessage.warning('当前会话没有消息，无法导出')
+        return
+      }
+      exportSession(format)
+    }
+
+    const exportSession = (format) => {
+      const messages = currentSession.value.messages
+      const title = currentSession.value.title || '未命名会话'
+      const date = new Date().toISOString().slice(0, 10)
+      
+      let content = ''
+      let filename = ''
+      let mimeType = ''
+      
+      switch(format) {
+        case 'txt':
+          content = generateTxtContent(messages, title)
+          filename = `会话历史_${title}_${date}.txt`
+          mimeType = 'text/plain;charset=utf-8'
+          break
+        case 'md':
+          content = generateMarkdownContent(messages, title)
+          filename = `会话历史_${title}_${date}.md`
+          mimeType = 'text/markdown;charset=utf-8'
+          break
+        case 'json':
+          content = JSON.stringify({
+            session: {
+              title,
+              created_at: currentSession.value.created_at,
+              messages: messages.map(m => ({
+                role: m.role,
+                content: m.content,
+                thinking: m.thinking || '',
+                created_at: m.created_at
+              }))
+            }
+          }, null, 2)
+          filename = `会话历史_${title}_${date}.json`
+          mimeType = 'application/json;charset=utf-8'
+          break
+      }
+      
+      // 创建下载
+      const blob = new Blob([content], {type: mimeType})
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      ElMessage.success(`会话历史已导出为${format.toUpperCase()}格式`)
+    }
+
+    // 生成TXT格式内容
+    const generateTxtContent = (messages, title) => {
+      let txt = `会话: ${title}\n`
+      txt += `导出时间: ${new Date().toLocaleString('zh-CN')}\n`
+      txt += '='.repeat(60) + '\n\n'
+      
+      messages.forEach((msg, index) => {
+        txt += `[${index + 1}] ${msg.role === 'user' ? '用户' : 'AI'} `
+        txt += `(${new Date(msg.created_at).toLocaleString('zh-CN')})\n`
+        txt += '-'.repeat(60) + '\n'
+        
+        if (msg.thinking && msg.thinking.trim()) {
+          txt += `思维过程:\n${msg.thinking}\n\n`
+        }
+        
+        txt += `${msg.content}\n\n`
+      })
+      
+      return txt
+    }
+
+    // 生成Markdown格式内容
+    const generateMarkdownContent = (messages, title) => {
+      let md = `# ${title}\n\n`
+      md += `**导出时间**: ${new Date().toLocaleString('zh-CN')}\n\n`
+      md += '---\n\n'
+      
+      messages.forEach((msg, index) => {
+        const role = msg.role === 'user' ? '👤 用户' : '🤖 AI'
+        const time = new Date(msg.created_at).toLocaleString('zh-CN')
+        
+        md += `## ${role} - ${time}\n\n`
+        
+        if (msg.thinking && msg.thinking.trim()) {
+          md += `> **思维过程**\n>\n> ${msg.thinking.split('\n').join('\n> ')}\n\n`
+        }
+        
+        md += `${msg.content}\n\n`
+        md += '---\n\n'
+      })
+      
+      return md
     }
 
     const retryMessage = async (message) => {
@@ -696,9 +908,22 @@ const sendMessage = async () => {
     }
   }
 
-  if (!selectedModel.value) {
-    ElMessage.warning('请先选择一个对话模型');
-    return;
+  // 根据对话模式进行验证
+  if (chatMode.value === 'normal') {
+    if (!selectedModel.value) {
+      ElMessage.warning('请先选择一个对话模型');
+      return;
+    }
+  } else if (chatMode.value === 'rag') {
+    if (!selectedDatasets.value || selectedDatasets.value.length === 0) {
+      ElMessage.warning('请先选择知识库');
+      return;
+    }
+  } else if (chatMode.value === 'workflow') {
+    if (!selectedWorkflow.value) {
+      ElMessage.warning('请先选择工作流应用');
+      return;
+    }
   }
 
   const userMessageContent = inputMessage.value.trim();
@@ -752,135 +977,177 @@ const sendMessage = async () => {
   }
 
   try {
-    // 构建消息数组，如果选择了系统提示词则添加system消息
-    const messages = [];
-
-    // 添加系统提示词（如果选择了）
-    if (selectedPrompt.value) {
-      const selectedPromptData = availablePrompts.value.find(p => p.id === selectedPrompt.value);
-      if (selectedPromptData) {
-        messages.push({
-          role: 'system',
-          content: selectedPromptData.content
-        });
-      }
-    }
-
-    // 添加用户消息
-    messages.push({
-      role: 'user',
-      content: userMessageContent
-    });
-
-    // 使用chat API进行对话
-    const requestData = {
-      model_config_id: selectedModel.value,
-      messages: messages
-    };
-
     let aiResponseContent = '';
-    let originalResponseContent = ''; // 保存原始内容（包含<think>标签）
+    let originalResponseContent = '';
     
-    // 重试机制：最多重试2次
-    let retryCount = 0;
-    const maxRetries = 2;
-    let lastError = null;
-    
-    while (retryCount < maxRetries) {
+    // 根据chatMode选择不同的处理逻辑
+    if (chatMode.value === 'rag') {
+      // RAG模式：调用Dify知识库检索
       try {
-        if (isStreaming.value) {
-          await handleStreamingResponse(requestData, originalSessionId, (finalContent) => {
-            originalResponseContent = finalContent || '';
-          });
-          // 获取流式响应的最终内容（用于本地变量）
-          const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            aiResponseContent = lastMessage.content;
-          }
-          break; // 成功，跳出重试循环
-        } else {
-          const response = await api.post('/chat/', requestData);
-          
-          // 解析响应内容
-          const responseContent = response.data.response || '抱歉，我无法回答这个问题。';
-          originalResponseContent = responseContent; // 保存原始内容
-          const parsed = parseThinkingContent(responseContent);
-          
-          // 添加AI回复到对话
-          const assistantMessage = {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: parsed.content,
-            thinking: parsed.thinking,
-            showThinking: parsed.hasThinking,
-            created_at: new Date().toISOString()
-          };
-          
-          // 只有当前显示的会话是原始会话时才更新UI
-          if (currentSession.value.id === originalSessionId) {
-            currentSession.value.messages.push(assistantMessage);
-            scrollToBottom();
-          }
-          
-          aiResponseContent = responseContent;
-          break; // 成功，跳出重试循环
+        const response = await difyAPI.chat({
+          query: userMessageContent,
+          dataset_ids: selectedDatasets.value,
+          user: userName.value || 'user'
+        });
+        
+        originalResponseContent = response.data?.answer || '抱歉，检索失败。';
+        
+        const assistantMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: originalResponseContent,
+          created_at: new Date().toISOString()
+        };
+        
+        if (currentSession.value.id === originalSessionId) {
+          currentSession.value.messages.push(assistantMessage);
+          scrollToBottom();
         }
       } catch (error) {
-        retryCount++;
-        lastError = error;
-        console.error(`请求失败，第${retryCount}次尝试:`, error);
+        console.error('RAG调用失败:', error);
+        ElMessage.error('知识库检索失败: ' + (error.response?.data?.detail || error.message));
+        throw error;
+      }
+    } else if (chatMode.value === 'workflow') {
+      // 工作流模式：调用Dify工作流
+      try {
+        const response = await difyAPI.runWorkflow(selectedWorkflow.value, {
+          query: userMessageContent,
+          user: userName.value || 'user'
+        });
         
-        if (retryCount < maxRetries) {
-          // 等待1秒后重试
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // 移除之前的错误消息（如果存在）
-          if (currentSession.value.messages.length > 0) {
+        originalResponseContent = response.data?.result || '抱歉，工作流执行失败。';
+        
+        const assistantMessage = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: originalResponseContent,
+          created_at: new Date().toISOString()
+        };
+        
+        if (currentSession.value.id === originalSessionId) {
+          currentSession.value.messages.push(assistantMessage);
+          scrollToBottom();
+        }
+      } catch (error) {
+        console.error('工作流调用失败:', error);
+        ElMessage.error('工作流执行失败: ' + (error.response?.data?.detail || error.message));
+        throw error;
+      }
+    } else {
+      // 普通对话模式：使用原有chat API
+      const messages = [];
+
+      if (selectedPrompt.value) {
+        const selectedPromptData = availablePrompts.value.find(p => p.id === selectedPrompt.value);
+        if (selectedPromptData) {
+          messages.push({
+            role: 'system',
+            content: selectedPromptData.content
+          });
+        }
+      }
+
+      messages.push({
+        role: 'user',
+        content: userMessageContent
+      });
+
+      const requestData = {
+        model_config_id: selectedModel.value,
+        messages: messages
+      };
+      
+      let retryCount = 0;
+      const maxRetries = 2;
+      let lastError = null;
+      
+      while (retryCount < maxRetries) {
+        try {
+          if (isStreaming.value) {
+            await handleStreamingResponse(requestData, originalSessionId, (finalContent) => {
+              originalResponseContent = finalContent || '';
+            });
             const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
-              currentSession.value.messages.pop();
+            if (lastMessage && lastMessage.role === 'assistant') {
+              aiResponseContent = lastMessage.content;
             }
+            break;
+          } else {
+            const response = await api.post('/chat/', requestData);
+            
+            const responseContent = response.data.response || '抱歉，我无法回答这个问题。';
+            originalResponseContent = responseContent;
+            const parsed = parseThinkingContent(responseContent);
+            
+            const assistantMessage = {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              content: parsed.content,
+              thinking: parsed.thinking,
+              showThinking: parsed.hasThinking,
+              created_at: new Date().toISOString()
+            };
+            
+            if (currentSession.value.id === originalSessionId) {
+              currentSession.value.messages.push(assistantMessage);
+              scrollToBottom();
+            }
+            
+            aiResponseContent = responseContent;
+            break;
           }
-        } else {
-          // 所有重试都失败，显示错误消息
-          const errorMessage = {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: '抱歉，模型调用失败，请稍后重试。',
-            isError: true,
-            created_at: new Date().toISOString()
-          };
+        } catch (error) {
+          retryCount++;
+          lastError = error;
+          console.error(`请求失败，第${retryCount}次尝试:`, error);
           
-          // 只有当前显示的会话是原始会话时才更新UI
-          if (currentSession.value.id === originalSessionId) {
-            currentSession.value.messages.push(errorMessage);
-            scrollToBottom();
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (currentSession.value.messages.length > 0) {
+              const lastMessage = currentSession.value.messages[currentSession.value.messages.length - 1];
+              if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
+                currentSession.value.messages.pop();
+              }
+            }
+          } else {
+            const errorMessage = {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              content: '抱歉，模型调用失败，请稍后重试。',
+              isError: true,
+              created_at: new Date().toISOString()
+            };
+            
+            if (currentSession.value.id === originalSessionId) {
+              currentSession.value.messages.push(errorMessage);
+              scrollToBottom();
+            }
+            
+            throw lastError;
           }
-          
-          throw lastError; // 重新抛出最后一个错误
         }
       }
     }
 
     // 保存AI回复到数据库
     try {
-      // 保存AI回复（使用原始会话ID）
       if (originalResponseContent) {
         console.log('💾 保存AI回复到数据库:', {
           session_id: originalSessionId,
           content_length: originalResponseContent.length,
           role: 'assistant',
-          model_name: selectedModel.value || 'unknown'
+          model_name: selectedModel.value || 'dify'
         });
         const aiMessageResponse = await chatAPI.sendMessage({
           session_id: originalSessionId,
           content: originalResponseContent,
           role: 'assistant',
-          model_name: selectedModel.value || 'unknown'
+          model_name: chatMode.value === 'normal' ? (selectedModel.value || 'unknown') : `dify-${chatMode.value}`
         });
         console.log('✅ AI回复保存成功, 消息ID:', aiMessageResponse.data?.id);
         
-        // 刷新会话列表（更新时间戳）
         await loadSessions();
       } else {
         console.log('⚠️ 没有AI回复内容需要保存');
@@ -891,8 +1158,6 @@ const sendMessage = async () => {
     }
 
   } catch (error) {
-    // 此处的catch只用于捕获从重试循环中最终抛出的、无法处理的错误。
-    // UI更新和错误保存逻辑已在循环内部处理，这里只做日志记录。
     console.error('AI调用最终失败:', error);
   } finally {
     sending.value = false;
@@ -900,6 +1165,14 @@ const sendMessage = async () => {
   }
 };
 
+    // 监听chatMode变化，动态加载数据
+    watch(chatMode, (newMode) => {
+      if (newMode === 'rag' && availableDatasets.value.length === 0) {
+        loadDatasets()
+      } else if (newMode === 'workflow' && availableWorkflows.value.length === 0) {
+        loadWorkflows()
+      }
+    })
 
     onMounted(() => {
       loadModels()
@@ -932,6 +1205,14 @@ const sendMessage = async () => {
       retryMessage,
       sendMessage,
       toggleThinking,
+      handleExportFormat,
+      chatMode,
+      selectedDatasets,
+      selectedWorkflow,
+      availableDatasets,
+      availableWorkflows,
+      loadingDatasets,
+      openDifyToCreateWorkflow,
       ChatDotRound,
       Delete,
       Reading,

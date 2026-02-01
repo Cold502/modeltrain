@@ -276,4 +276,21 @@ export const adminAPI = {
   getAdminStats: () => api.get('/admin/stats')
 }
 
-export default api 
+export const difyAPI = {
+  // 健康检查
+  checkHealth: () => api.get('/dify/health'),
+  
+  // 获取知识库列表
+  getDatasets: (params = {}) => api.get('/dify/datasets', { params }),
+  
+  // 获取工作流列表
+  getWorkflows: () => api.get('/dify/workflows'),
+  
+  // RAG对话
+  chat: (chatData) => api.post('/dify/chat', chatData),
+  
+  // 工作流执行
+  runWorkflow: (appId, inputs) => api.post(`/dify/workflows/${appId}/run`, { inputs })
+}
+
+export default api
