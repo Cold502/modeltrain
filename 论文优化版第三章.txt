@@ -1,0 +1,191 @@
+================================================================================
+三、 系统总体设计
+================================================================================
+
+（一）业务流程设计
+
+1. 用户登录流程
+用户访问系统时，首先需要完成身份认证。系统采用JWT双令牌机制，用户输入邮箱和密码后，系统验证用户身份，验证成功后颁发Access Token和Refresh Token。Access Token有效期为15分钟，用于API调用认证；Refresh Token有效期为7天，通过HttpOnly Cookie传输，用于刷新Access Token。当Access Token过期时，前端自动使用Refresh Token请求新的Access Token，实现无感刷新。
+
+图3-1-1 用户登录流程
+
+2. 模型配置流程
+管理员登录系统后，进入模型配置管理模块。首先添加模型提供商信息，包括提供商名称、API地址、API Key等。配置完成后，系统可通过API自动同步该提供商的可用模型列表。管理员选择需要启用的模型，配置模型参数（如温度、最大Token数等），保存后该模型即可在对话测试和模型对比模块中使用。
+
+图3-1-2 模型配置流程
+
+3. 模型测试流程
+用户在模型对话测试模块中，首先选择已配置的模型，创建新会话或选择历史会话。输入消息后，系统将请求发送至后端API，后端通过LLM客户端封装层调用对应模型提供商的API。模型返回响应后，系统解析响应内容，如果包含思维链标签<think>，则单独提取并展示推理过程。响应内容实时通过SSE流式传输至前端，前端逐字渲染并支持Markdown格式。
+
+图3-1-3 模型测试流程
+
+4. 模型训练流程
+用户上传训练数据集（JSON格式），系统自动校验数据格式并存储至服务器。用户创建训练任务时，选择基座模型、训练数据集，配置训练参数（学习率、Epoch、Batch Size、LoRA秩等）。任务创建后，系统更新任务状态为"运行中"，并启动SwanLab监控服务。训练过程中，系统实时记录训练日志和指标数据。训练完成后，系统生成训练报告并更新任务状态。
+
+图3-1-4 模型训练流程
+
+（二）系统架构设计
+
+1. 系统逻辑架构
+本系统采用经典的三层架构设计，分为表示层、业务逻辑层和数据访问层。
+
+表示层：采用Vue 3框架构建，负责用户界面展示和交互。使用Element Plus组件库提供统一的UI设计规范，Vuex管理全局状态（用户登录态、暗色模式、会话列表等），Vue Router实现路由导航。
+
+业务逻辑层：采用FastAPI框架构建RESTful API服务。核心模块包括用户认证（JWT双令牌机制）、模型配置管理、对话管理、训练任务管理、系统管理等。LLM客户端封装层采用策略模式设计，为不同模型提供商提供统一的调用接口。
+
+数据访问层：使用SQLAlchemy ORM框架操作数据库，支持SQLite和MySQL等多种数据库。通过Alembic实现数据库迁移管理，确保数据库结构变更的可追溯性。
+
+图3-2-1 系统逻辑架构
+
+2. 系统功能结构图
+系统功能结构按照模块化设计原则组织，主要包括8个功能模块：
+
+图3-2-2 系统功能结构
+
+3. 技术架构设计
+系统采用前后端分离架构，前端和后端独立部署，通过HTTP/HTTPS协议进行通信。
+
+前端技术栈：
+- 框架：Vue 3（Composition API）
+- 构建工具：Vite
+- UI组件库：Element Plus
+- 状态管理：Vuex
+- 路由管理：Vue Router
+- HTTP客户端：Axios
+
+后端技术栈：
+- Web框架：FastAPI
+- ORM框架：SQLAlchemy 2.x
+- 数据库迁移：Alembic
+- 身份认证：PyJWT
+- 密码加密：passlib（bcrypt）
+- HTTP客户端：httpx
+
+数据库：SQLite（开发环境），支持切换至MySQL、PostgreSQL等（生产环境）
+
+可视化工具：SwanLab（训练监控）
+
+图3-2-3 技术架构
+
+（三）系统网络拓扑设计
+
+本系统采用B/S（Browser/Server）架构，用户通过浏览器访问系统。系统部署架构如下：
+
+客户端层：用户通过浏览器（Chrome、Firefox、Edge等）访问系统前端页面。
+
+Web服务层：Nginx作为反向代理服务器，负责静态资源托管和请求转发。前端应用（Vue 3）编译后的静态文件部署在Nginx，API请求通过Nginx转发至后端服务。
+
+应用服务层：FastAPI应用服务处理业务逻辑，通过Uvicorn ASGI服务器运行。支持多实例部署实现水平扩展和负载均衡。
+
+数据服务层：数据库服务器存储业务数据，包括用户信息、模型配置、对话记录、训练任务等。
+
+外部服务层：系统调用第三方大模型API（OpenAI、Anthropic、DeepSeek等），通过HTTPS协议进行通信。SwanLab服务提供训练可视化监控。
+
+图3-3-1 系统网络拓扑
+
+（四）数据库设计
+
+1. 数据库E-R图
+
+系统核心实体包括用户（User）、模型提供商（ModelProvider）、模型配置（ModelConfig）、对话会话（ChatSession）、对话消息（ChatMessage）、系统提示词（SystemPrompt）、训练数据集（Dataset）、训练任务（TrainingTask）等。
+
+实体关系：
+- 用户与模型配置：一对多关系，一个用户可以配置多个模型
+- 模型提供商与模型配置：一对多关系，一个提供商包含多个模型配置
+- 用户与对话会话：一对多关系，一个用户可以创建多个会话
+- 对话会话与对话消息：一对多关系，一个会话包含多条消息
+- 用户与训练任务：一对多关系，一个用户可以创建多个训练任务
+- 训练数据集与训练任务：一对多关系，一个数据集可以被多个任务使用
+
+图3-4-1 数据库E-R图
+
+2. 核心业务表清单
+
+名称	代码	说明
+用户表	users	存储用户基本信息和权限
+模型提供商表	model_providers	存储模型提供商信息
+模型配置表	model_configs	存储模型配置参数
+提供商模型表	provider_models	存储提供商支持的模型列表
+对话会话表	chat_sessions	存储对话会话信息
+对话消息表	chat_messages	存储对话消息内容
+系统提示词表	system_prompts	存储系统提示词模板
+模型测试记录表	model_playground_chats	存储模型对比测试记录
+训练数据集表	datasets	存储训练数据集信息
+训练配置表	training_configs	存储训练配置参数
+训练任务表	training_tasks	存储训练任务状态
+模型表	models	存储模型运行状态
+表3-4-2 核心业务表清单
+
+3. 用户表设计
+
+名称	代码	数据类型	说明
+用户ID	id	Integer	主键，自增
+邮箱	email	String	唯一索引
+昵称	nickname	String	用户昵称
+密码哈希	password_hash	String	bcrypt加密
+角色	role	String	user/admin
+是否管理员	is_admin	Boolean	管理员标识
+是否激活	is_active	Boolean	账号状态
+创建时间	created_at	DateTime	创建时间戳
+更新时间	updated_at	DateTime	更新时间戳
+表3-4-3 用户表
+
+4. 模型配置表设计
+
+名称	代码	数据类型	说明
+配置ID	id	String(100)	主键，UUID
+用户ID	user_id	Integer	外键，关联用户表
+提供商ID	provider_id	String(100)	外键，关联提供商表
+提供商名称	provider_name	String(200)	提供商名称
+API端点	endpoint	String(500)	API地址
+API密钥	api_key	Text	加密存储
+模型ID	model_id	String(200)	模型标识
+模型名称	model_name	String(200)	模型显示名称
+模型类型	type	String(50)	text/vision
+温度	temperature	Float	0-2，默认0.7
+最大Token	max_tokens	Integer	默认8192
+Top P	top_p	Float	0-1，默认0.9
+Top K	top_k	Float	默认0
+状态	status	Integer	1启用/0禁用
+创建时间	created_at	DateTime	创建时间戳
+更新时间	updated_at	DateTime	更新时间戳
+表3-4-4 模型配置表
+
+5. 对话会话表设计
+
+名称	代码	数据类型	说明
+会话ID	id	Integer	主键，自增
+用户ID	user_id	Integer	外键，关联用户表
+会话标题	title	String(255)	默认"新对话"
+创建时间	created_at	DateTime	创建时间戳
+更新时间	updated_at	DateTime	更新时间戳
+表3-4-5 对话会话表
+
+6. 训练任务表设计
+
+名称	代码	数据类型	说明
+任务ID	id	Integer	主键，自增
+任务名称	name	String(255)	任务名称
+模型名称	model_name	String(255)	基座模型
+数据集ID	dataset_id	Integer	外键，关联数据集表
+配置ID	config_id	Integer	外键，关联配置表
+任务状态	status	String(50)	pending/running/completed/failed
+进度	progress	Float	0-100
+日志文件	log_file	String(500)	日志路径
+输出目录	output_dir	String(500)	模型保存路径
+SwanLab地址	swanlab_url	String(500)	监控链接
+开始时间	started_at	DateTime	任务开始时间
+完成时间	completed_at	DateTime	任务完成时间
+创建人	created_by	Integer	外键，关联用户表
+创建时间	created_at	DateTime	创建时间戳
+表3-4-6 训练任务表
+
+7. 其他业务表设计
+
+对话消息表（chat_messages）：存储对话消息内容，包括消息ID、会话ID、角色（user/assistant/system）、消息内容、模型名称、是否流式响应、创建时间等字段。
+
+系统提示词表（system_prompts）：存储系统提示词模板，包括提示词ID、名称、内容、描述、格式类型（openai/ollama/custom）、分类、是否默认、是否系统预定义、创建人、创建时间等字段。
+
+训练数据集表（datasets）：存储训练数据集信息，包括数据集ID、名称、描述、文件路径、文件大小、格式类型、上传人、创建时间等字段。
+
+模型测试记录表（model_playground_chats）：存储模型对比测试记录，包括记录ID、用户ID、会话ID、模型配置ID、角色、内容、推理过程（thinking）、创建时间等字段。
