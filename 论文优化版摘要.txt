@@ -1,0 +1,34 @@
+================================================================================
+摘  要
+================================================================================
+
+随着人工智能技术的快速发展，大语言模型在企业应用中展现出巨大潜力。然而，企业在应用大语言模型过程中面临着模型接入复杂、训练门槛高、管理分散等问题，缺乏统一的管理平台来支撑模型的配置、测试、训练和监控等全流程管理。为解决这些问题，本文设计并实现了一套企业级大语言模型训练管理平台。
+
+本文首先对企业大模型应用场景进行调研分析，明确了系统的业务需求和功能需求，将系统划分为用户认证、模型配置、模型对话、模型对比测试、模型训练、训练可视化、提示词管理、系统管理等8个核心功能模块。在技术选型上，采用Vue 3和Element Plus构建前端界面，基于FastAPI和SQLAlchemy实现后端业务逻辑，使用SQLite/MySQL作为数据库，集成SwanLab工具实现训练可视化监控。
+
+系统设计采用前后端分离架构和经典的三层架构模式，实现了表示层、业务逻辑层和数据访问层的清晰分离。用户认证模块采用JWT双令牌机制，通过Access Token和Refresh Token实现安全可靠的身份认证和无感刷新。模型配置模块基于策略模式封装LLM客户端，为OpenAI、Anthropic、Ollama等不同模型提供商提供统一调用接口。模型对话模块支持流式响应和思维链实时可视化，能够自动解析<think>标签并分离展示推理过程与最终答案。模型对比测试模块支持同时向最多3个模型发送相同提示词并行对比测试。训练可视化模块深度集成SwanLab工具，提供训练过程的实时监控和可视化图表展示。
+
+系统测试包括功能测试、性能测试和安全性测试三个方面。功能测试验证了所有功能模块的正确性，通过率达到100%。性能测试表明系统在200个并发用户场景下平均响应时间为0.421秒，核心API接口响应时间控制在300ms以内。安全性测试验证了JWT认证机制、权限控制和SQL注入防护的有效性。
+
+本系统成功解决了企业大模型应用中的关键问题，实现了多源异构模型的统一管理、模型对话测试、模型训练与可视化监控等核心功能，为企业提供了一站式的大模型管理解决方案。系统在统一模型接入框架、思维链实时可视化、多模型并行对比测试、无感Token刷新机制、训练可视化集成等方面具有创新性，具有良好的扩展性和实用价值。
+
+
+关键词：大语言模型；企业模型训练平台；FastAPI；Vue 3；JWT认证；思维链可视化
+
+
+================================================================================
+Abstract
+================================================================================
+
+With the rapid development of artificial intelligence technology, large language models (LLMs) have demonstrated enormous potential in enterprise applications. However, enterprises face challenges such as complex model integration, high training barriers, and fragmented management when applying LLMs. There is a lack of unified management platforms to support the full lifecycle management of model configuration, testing, training, and monitoring. To address these issues, this paper designs and implements an enterprise-level large language model training management platform.
+
+This paper first conducts a survey and analysis of enterprise LLM application scenarios, clarifying the business requirements and functional requirements of the system. The system is divided into eight core functional modules: user authentication, model configuration, model dialogue, model comparison testing, model training, training visualization, system prompt management, and system management. For technology selection, Vue 3 and Element Plus are used to build the frontend interface, FastAPI and SQLAlchemy are used to implement backend business logic, SQLite/MySQL serves as the database, and SwanLab tool is integrated for training visualization monitoring.
+
+The system design adopts a front-end and back-end separation architecture and the classic three-tier architecture pattern, achieving clear separation of presentation layer, business logic layer, and data access layer. The user authentication module employs a JWT dual-token mechanism, implementing secure and reliable identity authentication and seamless token refresh through Access Token and Refresh Token. The model configuration module encapsulates LLM clients based on the strategy pattern, providing a unified calling interface for different model providers such as OpenAI, Anthropic, and Ollama. The model dialogue module supports streaming responses and real-time visualization of chain-of-thought, automatically parsing <think> tags to separate and display reasoning processes and final answers. The model comparison testing module supports sending the same prompt to up to 3 models simultaneously for parallel comparison testing. The training visualization module deeply integrates the SwanLab tool, providing real-time monitoring and visualization charts of the training process.
+
+System testing includes three aspects: functional testing, performance testing, and security testing. Functional testing verified the correctness of all functional modules with a pass rate of 100%. Performance testing showed that the system achieved an average response time of 0.421 seconds under 200 concurrent users, with core API interface response times controlled within 300ms. Security testing validated the effectiveness of JWT authentication mechanisms, permission control, and SQL injection protection.
+
+This system successfully addresses key issues in enterprise LLM applications, implementing core functions such as unified management of heterogeneous models, model dialogue testing, model training, and visualization monitoring, providing enterprises with a one-stop LLM management solution. The system demonstrates innovation in unified model integration framework, real-time chain-of-thought visualization, parallel multi-model comparison testing, seamless token refresh mechanism, and training visualization integration, with good scalability and practical value.
+
+
+Keywords: Large Language Model; Enterprise Model Training Platform; FastAPI; Vue 3; JWT Authentication; Chain-of-Thought Visualization
