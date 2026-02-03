@@ -1,0 +1,431 @@
+================================================================================
+附  录
+================================================================================
+
+附录A：系统主要界面截图
+
+1. 用户登录界面
+
+系统登录界面采用简洁的设计风格，提供邮箱和密码输入框，支持记住登录状态功能。界面顶部显示系统Logo和标题，底部提供注册账号和找回密码的链接入口。页面右侧展示了默认管理员账号提示信息，方便测试使用。
+
+2. 系统首页（仪表盘）
+
+仪表盘页面展示了系统的核心统计信息，包括：
+- 模型配置数量统计
+- 训练任务数量统计
+- 对话会话数量统计
+- 数据集数量统计
+
+页面采用卡片式布局，每个卡片显示相应的统计数字和图标，并提供快速跳转到对应功能模块的链接。仪表盘使用ECharts图表库展示数据趋势，支持暗色模式切换。
+
+3. 模型配置管理界面
+
+模型配置管理界面采用卡片式布局展示所有已配置的模型。每个模型卡片包含：
+- 模型提供商图标（OpenAI、Anthropic、Ollama等）
+- 模型名称和显示名称
+- 模型状态标签（启用/禁用）
+- 操作按钮（编辑、测试、删除）
+
+页面顶部提供"添加模型配置"和"刷新模型列表"按钮。点击"添加模型配置"弹出对话框，支持选择提供商、输入API地址、API Key、选择模型等操作。界面支持按提供商筛选模型配置。
+
+4. 模型对话界面
+
+模型对话界面采用类似ChatGPT的对话风格设计，左侧为会话列表，右侧为对话区域。主要功能包括：
+- 会话列表：显示所有历史会话，支持新建、重命名、删除会话
+- 对话区域：展示用户消息和助手回复，支持Markdown渲染和代码高亮
+- 思维链展示：对于支持思维链的模型，在回复中自动识别并展示<think>标签内的推理过程
+- 输入框：支持多行文本输入，提供发送和停止按钮
+- 模型选择：顶部提供模型下拉选择框和流式响应开关
+- 导出功能：支持导出对话历史为Markdown格式
+
+5. 模型对比测试界面
+
+模型对比测试界面支持同时测试最多3个模型。界面分为三个部分：
+- 顶部：模型选择区域，提供3个模型选择下拉框和流式响应开关
+- 中间：提示词输入区域，支持多行文本输入和图片上传
+- 底部：测试结果展示区域，并排展示3个模型的响应结果
+
+每个测试结果卡片显示模型名称、响应内容、思维链（如有）和响应时间。界面支持清空结果和重新测试功能。
+
+6. 模型训练管理界面
+
+训练管理界面包含数据集管理和训练任务管理两个标签页：
+
+数据集管理标签页：
+- 数据集列表：以表格形式展示所有数据集，包括名称、描述、文件大小、格式、上传时间等
+- 操作按钮：上传数据集、查看详情、删除数据集
+- 上传对话框：支持选择文件、输入描述、选择格式类型
+
+训练任务管理标签页：
+- 任务列表：以表格形式展示所有训练任务，包括任务名称、模型、状态、进度、开始时间等
+- 状态标签：使用不同颜色标识任务状态（待启动/运行中/已完成/失败）
+- 操作按钮：创建任务、查看日志、查看模型、删除任务
+
+7. SwanLab可视化监控界面
+
+SwanLab可视化界面提供两种视图模式：
+
+配置视图：
+- SwanLab服务状态显示
+- 配置表单：支持设置项目名称、日志目录、端口等
+- 操作按钮：启动服务、停止服务、测试连接、保存配置
+
+嵌入视图：
+- 使用iframe嵌入SwanLab Web界面
+- 支持直接在系统内查看训练Loss、学习率等指标曲线
+- 提供返回配置按钮切换回配置视图
+
+8. 系统提示词管理界面
+
+提示词管理界面以表格形式展示所有提示词模板，包括：
+- 提示词列表：名称、格式类型、分类、是否默认、创建时间等
+- 筛选条件：支持按格式类型和是否预定义筛选
+- 操作按钮：添加提示词、编辑、删除、设为默认
+- 格式验证：支持验证提示词格式是否正确
+- 格式转换：支持OpenAI、Ollama、Custom格式互转
+
+9. 用户管理界面（管理员）
+
+管理员用户管理界面包含：
+- 用户列表：以表格形式展示所有用户，包括昵称、邮箱、角色、创建时间等
+- 角色标签：使用不同颜色区分管理员和普通用户
+- 操作按钮：切换角色、删除用户（默认管理员受保护）
+- 系统统计卡片：显示总用户数、管理员数、会话数、训练任务数
+
+10. 暗色模式界面
+
+系统全局支持暗色模式切换，提供日间和黑夜两种主题：
+- 日间模式：采用浅色背景、深色文字的配色方案
+- 黑夜模式：采用深色背景、浅色文字的配色方案
+- 切换开关：位于顶部导航栏，使用月亮/太阳图标表示当前模式
+- 主题持久化：使用localStorage保存用户偏好设置
+
+说明：由于附录仅包含文字描述，实际界面截图需单独提供。以上描述基于系统实际界面功能和布局。
+
+
+附录B：核心代码清单
+
+1. JWT认证中间件（backend/app/utils/auth.py）
+
+```python
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+SECRET_KEY = "your-secret-key-here"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """验证密码"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """生成密码哈希"""
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict) -> str:
+    """创建访问令牌"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def create_refresh_token(data: dict) -> str:
+    """创建刷新令牌"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+```
+
+2. LLM客户端基类（backend/app/llm_core/base_client.py）
+
+```python
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Generator
+
+class BaseClient(ABC):
+    """LLM客户端基类"""
+    
+    def __init__(self, api_base: str, api_key: str = None):
+        self.api_base = api_base
+        self.api_key = api_key
+    
+    @abstractmethod
+    def chat(self, messages: list, model: str, **kwargs) -> Dict[str, Any]:
+        """非流式对话"""
+        pass
+    
+    @abstractmethod
+    def stream_chat(self, messages: list, model: str, **kwargs) -> Generator:
+        """流式对话"""
+        pass
+    
+    @abstractmethod
+    def list_models(self) -> list:
+        """获取模型列表"""
+        pass
+```
+
+3. 思维链解析器（frontend/src/utils/thinkParser.js）
+
+```javascript
+export function parseThinkTags(content) {
+  const result = {
+    thinking: '',
+    answer: '',
+    hasThinking: false
+  };
+
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+  const matches = [...content.matchAll(thinkRegex)];
+  
+  if (matches.length > 0) {
+    result.hasThinking = true;
+    result.thinking = matches.map(m => m[1]).join('\n');
+    result.answer = content.replace(thinkRegex, '').trim();
+  } else {
+    result.answer = content;
+  }
+  
+  return result;
+}
+
+export function completeThinkTag(content) {
+  const openCount = (content.match(/<think>/g) || []).length;
+  const closeCount = (content.match(/<\/think>/g) || []).length;
+  
+  if (openCount > closeCount) {
+    return content + '</think>';
+  }
+  return content;
+}
+```
+
+4. Token管理器（frontend/src/utils/tokenManager.js）
+
+```javascript
+class TokenManager {
+  constructor() {
+    this.token = localStorage.getItem('token');
+    this.failedQueue = [];
+    this.isRefreshing = false;
+  }
+
+  getToken() {
+    return this.token;
+  }
+
+  setToken(token) {
+    this.token = token;
+    localStorage.setItem('token', token);
+  }
+
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('token');
+  }
+
+  async refreshToken() {
+    if (this.isRefreshing) {
+      return new Promise((resolve, reject) => {
+        this.failedQueue.push({ resolve, reject });
+      });
+    }
+
+    this.isRefreshing = true;
+    
+    try {
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      this.setToken(data.access_token);
+      
+      this.failedQueue.forEach(promise => promise.resolve(data.access_token));
+      this.failedQueue = [];
+      
+      return data.access_token;
+    } catch (error) {
+      this.failedQueue.forEach(promise => promise.reject(error));
+      this.failedQueue = [];
+      throw error;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+}
+
+export default new TokenManager();
+```
+
+5. 数据库模型定义（backend/app/models/user.py）
+
+```python
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy.sql import func
+from app.database import Base
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nickname = Column(String(100), unique=True, nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+```
+
+
+附录C：数据库表结构详细说明
+
+1. 用户表（users）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 用户ID，主键
+nickname | String | 100 | 否 | 否 | - | 用户昵称，唯一
+email | String | 255 | 否 | 否 | - | 用户邮箱，唯一
+hashed_password | String | 255 | 否 | 否 | - | 密码哈希值
+is_admin | Boolean | - | 否 | 否 | False | 是否为管理员
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+updated_at | DateTime | - | 否 | 否 | now() | 更新时间
+
+索引：nickname（唯一索引）、email（唯一索引）
+
+2. 模型配置表（model_configs）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | String | 36 | 是 | 否 | UUID | 配置ID，主键
+provider | String | 50 | 否 | 否 | - | 提供商名称
+model_name | String | 255 | 否 | 否 | - | 模型名称
+display_name | String | 255 | 否 | 是 | - | 显示名称
+api_base | String | 500 | 否 | 否 | - | API基础地址
+api_key | String | 255 | 否 | 是 | - | API密钥
+status | Integer | - | 否 | 否 | 1 | 状态（0禁用1启用）
+is_system | Boolean | - | 否 | 否 | False | 是否系统预置
+created_by | Integer | - | 否 | 是 | - | 创建人ID（外键）
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+updated_at | DateTime | - | 否 | 否 | now() | 更新时间
+
+外键：created_by → users(id)
+索引：provider、model_name组合唯一索引
+
+3. 对话会话表（chat_sessions）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 会话ID，主键
+user_id | Integer | - | 否 | 否 | - | 用户ID（外键）
+title | String | 255 | 否 | 否 | "新对话" | 会话标题
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+updated_at | DateTime | - | 否 | 否 | now() | 更新时间
+
+外键：user_id → users(id)
+索引：user_id
+
+4. 对话消息表（chat_messages）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 消息ID，主键
+session_id | Integer | - | 否 | 否 | - | 会话ID（外键）
+role | String | 20 | 否 | 否 | - | 角色（user/assistant/system）
+content | Text | - | 否 | 否 | - | 消息内容
+model_name | String | 255 | 否 | 是 | - | 使用的模型名称
+is_stream | Boolean | - | 否 | 否 | False | 是否流式响应
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+
+外键：session_id → chat_sessions(id)
+索引：session_id
+
+5. 训练任务表（training_tasks）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 任务ID，主键
+name | String | 255 | 否 | 否 | - | 任务名称
+model_name | String | 255 | 否 | 否 | - | 基座模型名称
+dataset_id | Integer | - | 否 | 否 | - | 数据集ID（外键）
+config_id | Integer | - | 否 | 是 | - | 配置ID（外键）
+status | String | 50 | 否 | 否 | "pending" | 任务状态
+progress | Float | - | 否 | 否 | 0 | 进度（0-100）
+log_file | String | 500 | 否 | 是 | - | 日志文件路径
+output_dir | String | 500 | 否 | 是 | - | 输出目录路径
+swanlab_url | String | 500 | 否 | 是 | - | SwanLab链接
+started_at | DateTime | - | 否 | 是 | - | 开始时间
+completed_at | DateTime | - | 否 | 是 | - | 完成时间
+created_by | Integer | - | 否 | 否 | - | 创建人ID（外键）
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+
+外键：dataset_id → datasets(id)、created_by → users(id)
+索引：created_by、status
+
+6. 数据集表（datasets）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 数据集ID，主键
+name | String | 255 | 否 | 否 | - | 数据集名称
+description | Text | - | 否 | 是 | - | 数据集描述
+file_path | String | 500 | 否 | 否 | - | 文件路径
+file_size | Integer | - | 否 | 否 | - | 文件大小（字节）
+format_type | String | 50 | 否 | 否 | - | 格式类型
+uploaded_by | Integer | - | 否 | 否 | - | 上传人ID（外键）
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+
+外键：uploaded_by → users(id)
+索引：uploaded_by
+
+7. 系统提示词表（system_prompts）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 提示词ID，主键
+name | String | 255 | 否 | 否 | - | 提示词名称
+content | Text | - | 否 | 否 | - | 提示词内容
+description | Text | - | 否 | 是 | - | 描述
+format_type | String | 50 | 否 | 否 | "openai" | 格式类型
+category | String | 100 | 否 | 是 | - | 分类
+is_default | Boolean | - | 否 | 否 | False | 是否默认
+is_system | Boolean | - | 否 | 否 | False | 是否系统预定义
+created_by | Integer | - | 否 | 是 | - | 创建人ID（外键）
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+updated_at | DateTime | - | 否 | 否 | now() | 更新时间
+
+外键：created_by → users(id)
+索引：format_type、category
+
+8. 模型测试记录表（model_playground_chats）
+
+字段名称 | 数据类型 | 长度 | 是否主键 | 是否允许空 | 默认值 | 说明
+--------|---------|------|---------|-----------|--------|------
+id | Integer | - | 是 | 否 | 自增 | 记录ID，主键
+user_id | Integer | - | 否 | 否 | - | 用户ID（外键）
+session_id | String | 255 | 否 | 是 | - | 会话ID
+model_config_id | String | 36 | 否 | 否 | - | 模型配置ID（外键）
+role | String | 20 | 否 | 否 | - | 角色
+content | Text | - | 否 | 否 | - | 内容
+thinking | Text | - | 否 | 是 | - | 推理过程
+created_at | DateTime | - | 否 | 否 | now() | 创建时间
+
+外键：user_id → users(id)、model_config_id → model_configs(id)
+索引：user_id、session_id
+
+说明：
+1. 所有表的id字段均设置为主键，大部分采用自增整型，模型配置表采用UUID字符串。
+2. 所有表均包含created_at字段记录创建时间，部分表包含updated_at字段记录更新时间。
+3. 外键关系确保了数据的引用完整性，删除父记录时需要先删除或更新子记录。
+4. 索引设计考虑了常用查询场景，提高了查询性能。
+5. 密码等敏感信息采用哈希存储，不保存明文。
