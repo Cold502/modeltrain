@@ -1,0 +1,547 @@
+================================================================================
+四、 系统详细设计与实现
+================================================================================
+
+（一）用户认证模块
+
+1. 用户注册
+用户注册功能允许新用户通过邮箱和昵称创建账号。系统采用bcrypt算法对用户密码进行加密存储，确保密码安全。
+
+页面展示：
+用户访问注册页面，填写邮箱、昵称和密码信息。系统对输入信息进行格式校验，确保邮箱格式正确、密码强度符合要求。提交注册请求后，系统检查邮箱和昵称的唯一性，若已存在则提示用户修改。注册成功后自动跳转至登录页面。
+
+图4-1-1 用户注册页面
+
+2. 用户登录
+用户登录功能支持使用邮箱或昵称作为登录标识。系统采用JWT双令牌机制，Access Token用于API调用认证，Refresh Token用于刷新Access Token。
+
+页面展示：
+用户在登录页面输入邮箱或昵称及密码，点击登录按钮。系统验证用户身份后，生成Access Token和Refresh Token。Access Token直接返回给前端，Refresh Token通过HttpOnly Cookie传输，防止XSS攻击。登录成功后跳转至系统首页。
+
+图4-1-2 用户登录页面
+
+3. Token刷新机制
+当Access Token过期时，前端自动使用Refresh Token请求新的Access Token，实现无感刷新，提升用户体验。
+
+工作流程：
+前端发送API请求时，若收到401错误，说明Access Token已过期。前端自动调用Token刷新接口，携带HttpOnly Cookie中的Refresh Token。后端验证Refresh Token有效性，生成新的Access Token并返回。前端使用新Token重试原请求，整个过程对用户透明。
+
+图4-1-3 Token刷新流程
+
+4. 关键代码实现
+
+后端用户注册代码（Python/FastAPI）：
+```python
+@router.post("/register", response_model=UserResponse)
+async def register(user_data: UserRegister, db: Session = Depends(get_db)):
+    # 检查邮箱是否已存在
+    if get_user_by_email(db, user_data.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邮箱已被注册"
+        )
+    
+    # 检查昵称是否已存在
+    if get_user_by_nickname(db, user_data.nickname):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="昵称已被使用"
+        )
+    
+    # 创建用户
+    user = create_user(db, user_data.email, user_data.nickname, user_data.password)
+    return user
+```
+
+该代码首先检查邮箱和昵称的唯一性，然后调用create_user函数创建新用户。create_user函数内部使用bcrypt算法对密码进行哈希处理后存储到数据库。
+
+前端登录代码（Vue 3）：
+```javascript
+const handleLogin = async () => {
+  if (!loginForm.value) return
+  
+  await loginForm.value.validate(async (valid) => {
+    if (!valid) return
+    
+    loading.value = true
+    try {
+      const response = await authAPI.login({
+        login: loginData.login,
+        password: loginData.password
+      })
+      
+      store.commit('setUser', response.user)
+      store.commit('setAccessToken', response.access_token)
+      
+      message.success('登录成功')
+      router.push('/dashboard')
+    } catch (error) {
+      message.error(error.response?.data?.detail || '登录失败')
+    } finally {
+      loading.value = false
+    }
+  })
+}
+```
+
+该代码使用Element Plus表单校验功能验证输入，调用后端登录接口获取Token，将用户信息和Token存储到Vuex状态管理中。
+
+（二）模型配置管理模块
+
+1. 模型配置列表
+模型配置列表展示系统中已添加的所有模型配置，包括提供商名称、模型名称、状态等信息。用户可以查看、编辑、删除模型配置。
+
+页面展示：
+模型配置列表采用卡片式布局，每个卡片展示一个模型配置。卡片上显示模型提供商图标、模型名称、API端点、状态标签等信息。用户可以点击编辑按钮修改配置，点击删除按钮移除配置。列表支持按提供商筛选和搜索功能。
+
+图4-2-1 模型配置列表页面
+
+2. 添加模型配置
+用户可以添加新的模型配置，包括选择模型提供商、配置API端点、设置API Key、选择模型、配置推理参数等。
+
+页面展示：
+点击"添加模型配置"按钮，弹出配置对话框。用户首先选择模型提供商（如OpenAI、Anthropic、Ollama等），输入API地址和API Key。然后点击"刷新模型列表"按钮，系统自动从提供商API获取可用模型列表。用户选择需要启用的模型，配置温度、最大Token数等参数。点击保存后，新配置即可在对话和测试模块中使用。
+
+图4-2-2 添加模型配置对话框
+
+3. 刷新模型列表
+系统支持从模型提供商API自动同步可用模型列表，无需手动输入模型名称。
+
+工作流程：
+用户在配置对话框中点击"刷新模型列表"按钮，前端发送请求到后端。后端使用配置的API端点和API Key调用提供商的模型列表接口。获取模型列表后，系统自动识别模型类型（对话模型、嵌入模型、视觉模型等），并存储到数据库。前端展示模型列表供用户选择。
+
+图4-2-3 刷新模型列表流程
+
+4. 关键代码实现
+
+后端创建模型配置代码：
+```python
+@router.post("/", response_model=ModelConfigResponse)
+async def create_model_config(
+    config: ModelConfigCreate, 
+    db: Session = Depends(get_db)
+):
+    # 检查是否已存在相同的模型配置
+    existing = db.query(ModelConfigModel).filter(
+        ModelConfigModel.provider_id == config.provider_id,
+        ModelConfigModel.model_name == config.model_name,
+        ModelConfigModel.endpoint == config.endpoint
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="相同的模型配置已存在")
+    
+    # 创建新的模型配置
+    import uuid
+    db_config = ModelConfigModel(
+        id=str(uuid.uuid4()),
+        user_id=1,
+        provider_id=config.provider_id,
+        provider_name=config.provider_name,
+        endpoint=config.endpoint,
+        api_key=config.api_key,
+        model_id=config.model_id,
+        model_name=config.model_name,
+        type=config.type,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        status=config.status
+    )
+    
+    db.add(db_config)
+    db.commit()
+    db.refresh(db_config)
+    
+    return db_config
+```
+
+该代码首先检查配置是否已存在，然后生成UUID作为配置ID，创建新的模型配置记录并保存到数据库。
+
+（三）模型对话模块
+
+1. 会话管理
+会话管理功能支持创建、查看、删除对话会话。用户可以在左侧会话列表中快速切换不同的对话会话。
+
+页面展示：
+界面采用左右分栏布局，左侧为会话列表，右侧为对话区域。会话列表显示会话标题、创建时间和删除按钮。点击会话项可切换到该会话，点击"新对话"按钮创建新会话。当前选中的会话高亮显示。
+
+图4-3-1 会话管理界面
+
+2. 消息发送
+用户在对话区域输入消息后，系统将消息发送到后端API，后端调用LLM客户端获取模型响应。
+
+工作流程：
+用户在输入框中输入消息，选择要使用的模型，点击发送按钮。前端先将用户消息保存到数据库，然后调用后端对话接口。后端通过LLM客户端封装层调用对应模型提供商的API，获取模型响应后解析内容。如果响应包含思维链标签<think>，系统单独提取并展示推理过程。响应内容保存到数据库并返回给前端展示。
+
+图4-3-2 消息发送流程
+
+3. 流式响应处理
+系统支持SSE（Server-Sent Events）流式响应，模型生成的内容实时逐字展示，提升用户体验。
+
+技术实现：
+前端通过EventSource或fetch API建立SSE连接，接收后端推送的数据流。后端调用模型API获取流式响应，逐块解析数据并通过SSE推送给前端。前端接收到数据块后，逐字渲染到对话区域，支持Markdown格式和代码高亮。流式传输结束后，将完整的助手回复保存到数据库。
+
+图4-3-3 流式响应展示
+
+4. 历史记录导出
+用户可以将对话历史导出为TXT、Markdown或JSON格式，便于保存和分享。
+
+页面展示：
+点击"导出会话"按钮，选择导出格式。系统读取当前会话的所有消息，按照选定格式进行格式化处理。TXT格式按时间顺序展示对话内容，Markdown格式支持代码块和格式化文本，JSON格式包含完整的消息元数据。导出完成后自动下载到本地。
+
+图4-3-4 历史记录导出
+
+5. 关键代码实现
+
+后端发送消息代码：
+```python
+@router.post("/messages", response_model=ChatMessageResponse)
+async def send_message(
+    message_data: ChatMessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 如果没有指定会话，创建新会话
+    if not message_data.session_id:
+        session = ChatSession(user_id=current_user.id, title="新对话")
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        session_id = session.id
+    else:
+        session_id = message_data.session_id
+        # 验证会话属于当前用户
+        session = db.query(ChatSession).filter(
+            ChatSession.id == session_id,
+            ChatSession.user_id == current_user.id
+        ).first()
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="聊天会话不存在"
+            )
+    
+    # 保存消息
+    message = ChatMessage(
+        session_id=session_id,
+        role=message_data.role,
+        content=message_data.content,
+        model_name=message_data.model_name,
+        is_streaming=message_data.is_streaming
+    )
+    
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    
+    return message
+```
+
+该代码处理消息保存逻辑，支持自动创建新会话，验证会话权限，并将消息持久化到数据库。
+
+（四）模型对比测试模块
+
+1. 测试配置
+用户可以选择多个模型进行并行对比测试，最多支持同时对比3个模型。
+
+页面展示：
+测试页面顶部显示模型选择区域，用户点击"选择模型"按钮，从已配置的模型列表中选择需要对比的模型。选中的模型显示在卡片中，每个卡片展示模型名称、提供商和配置参数。用户可以为每个模型单独配置系统提示词。
+
+图4-4-1 测试配置页面
+
+2. 批量对比测试
+用户输入一条提示词，系统同时向所有选中的模型发送请求，并行展示响应结果。
+
+工作流程：
+用户在输入框中输入测试提示词，点击"发送"按钮。系统创建唯一的会话ID，向所有选中的模型并行发送请求。每个模型的响应独立展示在对应的卡片中，支持流式响应实时渲染。响应过程中显示加载动画，响应完成后展示完整内容。
+
+图4-4-2 批量对比测试界面
+
+3. 测试结果分析
+测试完成后，用户可以直观对比不同模型的响应速度、回复质量和推理过程。
+
+页面展示：
+所有模型的响应并排展示，便于对比。系统记录每个模型的响应时间，显示在卡片底部。对于支持思维链的模型（如DeepSeek R1），系统解析并展示<think>标签中的推理过程。用户可以复制、导出测试结果，或保存为测试记录。
+
+图4-4-3 测试结果对比
+
+4. 关键代码实现
+
+前端并行测试代码（Vue 3）：
+```javascript
+const sendToAllModels = async () => {
+  if (!userInput.value.trim()) return
+  
+  isSending.value = true
+  const sessionId = generateSessionId()
+  
+  // 并行发送到所有模型
+  const promises = selectedModels.value.map(async (model) => {
+    try {
+      const response = await playgroundAPI.chat({
+        session_id: sessionId,
+        model_config_id: model.id,
+        message: userInput.value,
+        system_prompt: model.systemPrompt,
+        stream: useStreaming.value
+      })
+      
+      return { model: model.id, response }
+    } catch (error) {
+      return { model: model.id, error }
+    }
+  })
+  
+  await Promise.all(promises)
+  isSending.value = false
+}
+```
+
+该代码使用Promise.all并行发送请求到所有选中的模型，实现同时对比测试功能。
+
+（五）模型训练管理模块
+
+1. 数据集管理
+用户可以上传训练数据集，支持JSON、JSONL、CSV、TXT等格式。系统自动校验数据格式并存储。
+
+页面展示：
+数据集管理页面展示已上传的数据集列表，包括数据集名称、格式、大小、上传时间等信息。点击"上传数据集"按钮，选择本地文件上传。系统支持拖拽上传，上传过程显示进度条。上传完成后，系统自动校验数据格式，若格式不正确则提示用户修改。
+
+图4-5-1 数据集管理页面
+
+2. 训练任务创建
+用户可以创建新的训练任务，配置基座模型、训练数据集和训练参数。
+
+页面展示：
+点击"创建训练任务"按钮，打开任务配置对话框。用户填写任务名称，选择基座模型和训练数据集。配置训练参数包括学习率、训练轮数（Epoch）、批次大小（Batch Size）、LoRA秩等。系统提供参数说明和建议值，帮助用户正确配置。配置完成后点击"创建"按钮，任务即被添加到任务列表。
+
+图4-5-2 训练任务创建对话框
+
+3. 训练任务管理
+用户可以查看训练任务列表，启动、停止训练任务，查看任务状态和进度。
+
+页面展示：
+训练任务列表展示所有任务的状态，包括待运行、运行中、已完成、失败等状态。每个任务显示任务名称、模型、数据集、进度、创建时间等信息。用户可以点击"启动"按钮开始训练，点击"停止"按钮中止训练。运行中的任务显示实时进度条和状态信息。
+
+图4-5-3 训练任务管理页面
+
+4. 关键代码实现
+
+后端上传数据集代码：
+```python
+@router.post("/datasets", response_model=DatasetResponse)
+async def upload_dataset(
+    file: UploadFile = File(...),
+    name: str = None,
+    description: str = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    allowed_formats = ['.json', '.jsonl', '.csv', '.txt']
+    file_extension = os.path.splitext(file.filename)[1].lower()
+    
+    if file_extension not in allowed_formats:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的文件格式，支持的格式: {', '.join(allowed_formats)}"
+        )
+    
+    upload_dir = "uploads/datasets"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    import uuid
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+    
+    file_size = os.path.getsize(file_path)
+    
+    dataset = Dataset(
+        name=name or file.filename,
+        description=description,
+        file_path=file_path,
+        file_size=file_size,
+        format_type=file_extension[1:],
+        uploaded_by=current_user.id
+    )
+    
+    db.add(dataset)
+    db.commit()
+    db.refresh(dataset)
+    
+    return dataset
+```
+
+该代码处理文件上传，校验文件格式，使用UUID生成唯一文件名避免重名，将文件保存到服务器并创建数据集记录。
+
+（六）训练可视化监控模块
+
+1. SwanLab集成
+系统集成SwanLab训练可视化工具，提供训练过程的实时监控和可视化图表。
+
+页面展示：
+训练可视化页面分为配置视图和嵌入视图两种模式。配置视图展示SwanLab服务状态、配置信息和控制按钮。嵌入视图通过iframe嵌入SwanLab Web界面，用户可以直接在系统内查看训练图表。页面顶部提供视图切换按钮。
+
+图4-6-1 SwanLab集成页面
+
+2. 训练指标监控
+SwanLab实时记录和展示训练过程中的关键指标，包括Loss曲线、学习率变化等。
+
+功能说明：
+训练过程中，系统通过SwanLab SDK记录每个训练步骤的指标数据。SwanLab自动生成可视化图表，包括训练Loss、验证Loss、学习率、梯度范数等指标的变化曲线。用户可以在图表中缩放、平移，查看特定时间点的指标值。支持多次训练结果对比，便于分析模型性能。
+
+图4-6-2 训练指标监控图表
+
+3. 实时日志查看
+系统提供训练日志的实时流式展示，用户可以监控训练进度和排查错误。
+
+页面展示：
+日志查看区域显示训练脚本的实时输出，包括训练步骤、当前指标值、警告信息、错误信息等。日志自动滚动到最新内容，用户可以暂停自动滚动查看历史日志。系统支持日志筛选功能，可以只显示错误或警告信息。日志支持导出为文本文件。
+
+图4-6-3 实时日志查看
+
+4. 关键代码实现
+
+前端SwanLab状态管理代码（Vue 3）：
+```javascript
+const startSwanLab = async () => {
+  try {
+    startLoading.value = true
+    await trainingAPI.startSwanLab(swanlabConfig.value)
+    message.success('SwanLab 服务启动成功')
+    await loadSwanLabInfo()
+  } catch (error) {
+    message.error(error.response?.data?.detail || 'SwanLab 启动失败')
+  } finally {
+    startLoading.value = false
+  }
+}
+
+const stopSwanLab = async () => {
+  try {
+    stopLoading.value = true
+    await trainingAPI.stopSwanLab()
+    message.success('SwanLab 服务已停止')
+    await loadSwanLabInfo()
+  } catch (error) {
+    message.error(error.response?.data?.detail || 'SwanLab 停止失败')
+  } finally {
+    stopLoading.value = false
+  }
+}
+```
+
+该代码实现SwanLab服务的启动和停止功能，调用后端API控制SwanLab进程。
+
+（七）系统提示词管理模块
+
+1. 提示词库管理
+系统提供系统提示词模板的集中管理功能，用户可以创建、编辑、删除提示词模板。
+
+页面展示：
+提示词管理页面展示所有提示词模板列表，包括模板名称、分类、格式类型、创建时间等信息。点击"新建提示词"按钮，打开创建对话框。用户填写提示词名称、内容、描述、选择分类和格式类型。系统支持变量定义功能，用户可以在提示词中使用{{variable}}语法定义变量占位符。
+
+图4-7-1 提示词库管理页面
+
+2. 格式验证
+系统支持对提示词格式进行验证，确保提示词符合OpenAI、Ollama等不同格式规范。
+
+功能说明：
+用户在编辑提示词时，可以选择格式类型（OpenAI、Ollama、Custom）。点击"验证格式"按钮，系统根据选定的格式类型检查提示词结构是否正确。对于OpenAI格式，系统验证是否包含system、user、assistant等角色标识。对于Ollama格式，系统验证是否符合Modelfile语法。验证通过后显示成功提示，否则显示具体错误信息。
+
+图4-7-2 格式验证功能
+
+3. 模板转换
+系统支持不同格式的提示词模板相互转换，提高模板复用性。
+
+功能说明：
+用户选择一个提示词模板，点击"格式转换"按钮，选择目标格式。系统自动将提示词从当前格式转换为目标格式。例如，将OpenAI格式的消息数组转换为Ollama格式的Modelfile。转换完成后，用户可以预览转换结果，确认无误后保存为新模板。
+
+图4-7-3 模板转换功能
+
+4. 关键代码实现
+
+后端格式验证代码：
+```python
+@router.post("/system-prompts/validate")
+async def validate_prompt_format(prompt: dict):
+    format_type = prompt.get("format_type", "openai")
+    content = prompt.get("content", "")
+    
+    if format_type == "openai":
+        # 验证OpenAI格式
+        try:
+            messages = json.loads(content)
+            if not isinstance(messages, list):
+                raise ValueError("OpenAI格式应为消息数组")
+            for msg in messages:
+                if "role" not in msg or "content" not in msg:
+                    raise ValueError("消息缺少role或content字段")
+            return {"valid": True, "message": "格式验证通过"}
+        except Exception as e:
+            return {"valid": False, "message": str(e)}
+    
+    return {"valid": True, "message": "格式验证通过"}
+```
+
+该代码实现提示词格式验证功能，检查提示词是否符合指定格式规范。
+
+（八）系统管理模块
+
+1. 用户管理
+管理员可以查看所有用户列表，管理用户账号状态和权限。
+
+页面展示：
+用户管理页面展示用户列表，包括用户ID、昵称、邮箱、角色、状态等信息。管理员可以启用或禁用用户账号，调整用户角色（普通用户或管理员）。页面顶部显示用户统计信息，包括总用户数、活跃用户数、管理员数量。支持按状态和角色筛选用户。
+
+图4-8-1 用户管理页面
+
+2. 角色权限管理
+系统支持基于角色的权限控制，管理员可以调整用户角色。
+
+功能说明：
+系统定义两种角色：普通用户和管理员。普通用户只能管理自己创建的资源（模型配置、对话会话、训练任务等），管理员可以管理所有用户的资源和系统配置。管理员在用户管理页面可以将普通用户提升为管理员，或将管理员降级为普通用户。角色调整立即生效，用户下次登录时获得新权限。
+
+图4-8-2 角色权限管理
+
+3. 系统统计
+系统管理页面展示系统运行的基础统计信息。
+
+页面展示：
+统计卡片展示总用户数、活跃用户数、管理员数量等信息。每个统计卡片使用不同颜色和图标区分，直观展示系统状态。统计数据实时更新，管理员可以点击刷新按钮手动更新数据。
+
+图4-8-3 系统统计页面
+
+4. 关键代码实现
+
+后端获取系统统计代码：
+```python
+@router.get("/stats")
+async def get_admin_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 验证管理员权限
+    if not current_user or not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限"
+        )
+    
+    total_users = db.query(User).count()
+    active_users = db.query(User).filter(User.is_active == True).count()
+    admin_users = db.query(User).filter(User.is_admin == True).count()
+    
+    return {
+        "users": {
+            "total": total_users,
+            "active": active_users,
+            "admins": admin_users
+        }
+    }
+```
+
+该代码实现系统统计数据获取功能，查询数据库统计用户数量信息并返回。
