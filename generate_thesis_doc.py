@@ -8,10 +8,10 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 
 def set_chinese_font(run, font_name='宋体', font_size=12):
-    """设置中文字体"""
-    run.font.name = font_name
+    """设置中文字体（中文：宋体/黑体，英文数字：Times New Roman）"""
+    run.font.name = 'Times New Roman'  # 英文和数字字体
     run.font.size = Pt(font_size)
-    run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)
+    run._element.rPr.rFonts.set(qn('w:eastAsia'), font_name)  # 中文字体
 
 def add_heading_custom(doc, text, level=1):
     """添加自定义格式的标题"""
