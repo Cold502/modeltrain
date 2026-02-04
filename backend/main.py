@@ -143,7 +143,7 @@ app.add_middleware(
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers"
     ],
-    expose_headers=["*"]
+    expose_headers=["Content-Type", "Authorization"] if os.getenv("ENVIRONMENT", "development") == "production" else ["*"]
 )
 
 # 全局异常处理，将各类异常统一映射为 ErrorResponse，以便前端稳定处理

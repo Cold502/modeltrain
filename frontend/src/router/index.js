@@ -1,20 +1,6 @@
 import {createRouter, createWebHistory} from 'vue-router'
 import store from '../store'
 
-// 页面组件
-import Login from '../views/Login.vue'
-import Register from '../views/Register.vue'
-import ResetPassword from '../views/ResetPassword.vue'
-import Layout from '../components/Layout.vue'
-import Dashboard from '../views/Dashboard.vue'
-import ModelChat from '../views/ModelChat.vue'
-import ModelTest from '../views/ModelTest.vue'
-import ModelTraining from '../views/ModelTraining.vue'
-import SystemPrompt from '../views/SystemPrompt.vue'
-import SwanLabViz from '../views/SwanLabViz.vue'
-import AdminPanel from '../views/AdminPanel.vue'
-import ModelConfig from '../views/ModelConfig.vue'
-
 const routes = [
     {
         path: '/',
@@ -38,43 +24,43 @@ const routes = [
     
     {
         path: '/dashboard',
-        component: Layout,
+        component: () => import('@/components/Layout.vue'),
         meta: {requiresAuth: true},
         children: [
             {
                 path: '',
                 name: 'Dashboard',
-                component: Dashboard
+                component: () => import('@/views/Dashboard.vue')
             },
             {
                 path: 'chat',
                 name: 'Chat',
-                component: ModelChat
+                component: () => import('@/views/ModelChat.vue')
             },
             {
                 path: 'training',
                 name: 'Training',
-                component: ModelTraining
+                component: () => import('@/views/ModelTraining.vue')
             },
             {
                 path: 'training-viz',
                 name: 'TrainingViz',
-                component: SwanLabViz
+                component: () => import('@/views/SwanLabViz.vue')
             },
             {
                 path: 'model-config',
                 name: 'ModelConfig',
-                component: ModelConfig
+                component: () => import('@/views/ModelConfig.vue')
             },
             {
                 path: 'model-test',
                 name: 'ModelTest',
-                component: ModelTest
+                component: () => import('@/views/ModelTest.vue')
             },
             {
                 path: 'prompt-management',
                 name: 'PromptManagement',
-                component: SystemPrompt
+                component: () => import('@/views/SystemPrompt.vue')
             },
             {
                 path: 'dify',
@@ -85,7 +71,7 @@ const routes = [
             {
                 path: 'admin',
                 name: 'AdminPanel',
-                component: AdminPanel,
+                component: () => import('@/views/AdminPanel.vue'),
                 meta: {requiresAdmin: true}
             }
         ]

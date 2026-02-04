@@ -17,6 +17,7 @@ from app.utils.auth import (
     create_refresh_token,
     verify_refresh_token
 )
+from app.utils.rate_limit import login_limiter
 from app.models.user import User
 from pydantic import BaseModel
 
@@ -91,9 +92,20 @@ async def login(user_data: UserLogin, response: Response, request: Request, db: 
     - Cookie `secure` 受环境变量 `COOKIE_SECURE` 控制。
     """
     try:
+        # 检查是否在冷却期
+        is_blocked, remaining = login_limiter.is_blocked(user_data.login)
+        if is_blocked:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"登录失败次数过多，请在{remaining}秒后重试"
+            )
+        
         user = authenticate_user(db, user_data.login, user_data.password)
         
         if not user:
+            # 记录失败
+            login_limiter.record_failure(user_data.login)
+            
             # 检查用户是否存在
             existing_user = db.query(User).filter(
                 (User.email == user_data.login) | (User.nickname == user_data.login)
@@ -115,6 +127,9 @@ async def login(user_data: UserLogin, response: Response, request: Request, db: 
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="账号已被禁用"
             )
+        
+        # 登录成功，清除失败记录
+        login_limiter.record_success(user_data.login)
         
         # 给用户制作两张通行证
         access_token = create_access_token(data={"sub": str(user.id)})
