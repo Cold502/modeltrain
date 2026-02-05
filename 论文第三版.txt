@@ -38,7 +38,6 @@
 ================================================================================
 
 摘  要	Ⅰ
-Abstract	Ⅱ
 
 一、	综述	1
 （一）	系统建设背景	1
@@ -186,24 +185,6 @@ Abstract	Ⅱ
 
 
 关键词：大语言模型；企业模型训练平台；FastAPI；Vue 3；JWT认证；思维链可视化
-
-
-================================================================================
-Abstract
-================================================================================
-
-With the rapid development of artificial intelligence technology, large language models (LLMs) have demonstrated enormous potential in enterprise applications. However, enterprises face challenges such as complex model integration, high training barriers, and fragmented management when applying LLMs. There is a lack of unified management platforms to support the full lifecycle management of model configuration, testing, training, and monitoring. To address these issues, this paper designs and implements an enterprise-level large language model training management platform.
-
-This paper first conducts a survey and analysis of enterprise LLM application scenarios, clarifying the business requirements and functional requirements of the system. The system is divided into eight core functional modules: user authentication, model configuration, model dialogue, model comparison testing, model training, training visualization, system prompt management, and system management. For technology selection, Vue 3 and Element Plus are used to build the frontend interface, FastAPI and SQLAlchemy are used to implement backend business logic, SQLite/MySQL serves as the database, and SwanLab tool is integrated for training visualization monitoring.
-
-The system design adopts a front-end and back-end separation architecture and the classic three-tier architecture pattern, achieving clear separation of presentation layer, business logic layer, and data access layer. The user authentication module employs a JWT dual-token mechanism, implementing secure and reliable identity authentication and seamless token refresh through Access Token and Refresh Token. The model configuration module encapsulates LLM clients based on the strategy pattern, providing a unified calling interface for different model providers such as OpenAI, Anthropic, and Ollama. The model dialogue module supports streaming responses and real-time visualization of chain-of-thought, automatically parsing <think> tags to separate and display reasoning processes and final answers. The model comparison testing module supports sending the same prompt to up to 3 models simultaneously for parallel comparison testing. The training visualization module deeply integrates the SwanLab tool, providing real-time monitoring and visualization charts of the training process.
-
-System testing includes three aspects: functional testing, performance testing, and security testing. Functional testing verified the correctness of all functional modules with a pass rate of 100%. Performance testing showed that the system achieved an average response time of 0.421 seconds under 200 concurrent users, with core API interface response times controlled within 300ms. Security testing validated the effectiveness of JWT authentication mechanisms, permission control, and SQL injection protection.
-
-This system successfully addresses key issues in enterprise LLM applications, implementing core functions such as unified management of heterogeneous models, model dialogue testing, model training, and visualization monitoring, providing enterprises with a one-stop LLM management solution. The system demonstrates innovation in unified model integration framework, real-time chain-of-thought visualization, parallel multi-model comparison testing, seamless token refresh mechanism, and training visualization integration, with good scalability and practical value.
-
-
-Keywords: Large Language Model; Enterprise Model Training Platform; FastAPI; Vue 3; JWT Authentication; Chain-of-Thought Visualization
 
 
 ================================================================================
