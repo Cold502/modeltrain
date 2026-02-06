@@ -6,34 +6,27 @@ import { getAccessToken, handle401Error, getAuthHeaders } from './tokenManager'
 import { log, logSafe, error as logError } from './logger'
 
 // 读取环境变量中的 API 基地址，默认为 '/api'。
-// 开发模式下使用绝对后端URL
+// 当处于 Vite dev server（常用 3000 端口）且未手动配置时，自动回退到后端服务 8000 端口，避免代理失效导致 404。
 const inferDevApiBase = () => {
   if (typeof window === 'undefined') return '/api'
-  if (import.meta.env.DEV) {
-    return 'http://127.0.0.1:8000/api'
+  const { hostname, port } = window.location
+  if (port === '3000' || port === '5173') {
+    return `http://127.0.0.1:8000/api`
   }
   return '/api'
 }
 
 const apiBaseURL = (import.meta.env?.VITE_API_BASE_URL?.trim()) || inferDevApiBase()
 
-console.log('🔍 API配置:')
-console.log('  DEV模式:', import.meta.env.DEV)
-console.log('  配置的baseURL:', apiBaseURL)
-
 // 创建axios实例
 const api = axios.create({
-  baseURL: apiBaseURL,
+  baseURL: apiBaseURL,  // 支持通过环境变量配置
   timeout: 30000,
-  withCredentials: true,
+  withCredentials: true,  // 确保发送cookie
   headers: {
     'Content-Type': 'application/json'
   }
 })
-
-console.log('🔍 axios实例配置:')
-console.log('  实例baseURL:', api.defaults.baseURL)
-console.log('  实例headers:', api.defaults.headers)
 
 // 请求拦截器
 api.interceptors.request.use(
@@ -60,17 +53,9 @@ api.interceptors.request.use(
       }
     }
     
-    // 输出完整的请求URL
-    const fullURL = config.baseURL + config.url
-    console.log('🚀 实际请求URL:', fullURL)
-    console.log('  - baseURL:', config.baseURL)
-    console.log('  - url:', config.url)
-    console.log('  - method:', config.method?.toUpperCase())
-    
     logSafe('🌐 发送请求:', {
       method: config.method?.toUpperCase(),
       url: config.url,
-      fullURL: fullURL,
       withCredentials: config.withCredentials
     })
     
