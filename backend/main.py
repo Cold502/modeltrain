@@ -126,12 +126,18 @@ app = FastAPI(
 # - allow_methods/allow_headers：允许的方法与头部（生产环境建议最小化）。
 # 注意：
 # - 生产环境应改为实际域名，避免使用通配；减少暴露的 headers。
+cors_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if os.getenv("ENVIRONMENT", "development") != "production":
+    cors_origins += [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000"
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
