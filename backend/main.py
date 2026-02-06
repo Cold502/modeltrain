@@ -131,11 +131,18 @@ cors_origins = [
     "http://127.0.0.1:3000",
 ]
 if os.getenv("ENVIRONMENT", "development") != "production":
-    cors_origins = ["*"]
+    cors_origins += [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_credentials=False if cors_origins == ["*"] else True,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
         "Content-Type",
