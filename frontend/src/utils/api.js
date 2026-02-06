@@ -17,6 +17,11 @@ const inferDevApiBase = () => {
 
 const apiBaseURL = (import.meta.env?.VITE_API_BASE_URL?.trim()) || inferDevApiBase()
 
+console.log('🔍 API配置调试:')
+console.log('  - import.meta.env.DEV:', import.meta.env.DEV)
+console.log('  - import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
+console.log('  - 最终baseURL:', apiBaseURL)
+
 // 创建axios实例
 const api = axios.create({
   baseURL: apiBaseURL,  // 支持通过环境变量配置
