@@ -60,9 +60,17 @@ api.interceptors.request.use(
       }
     }
     
+    // 输出完整的请求URL
+    const fullURL = config.baseURL + config.url
+    console.log('🚀 实际请求URL:', fullURL)
+    console.log('  - baseURL:', config.baseURL)
+    console.log('  - url:', config.url)
+    console.log('  - method:', config.method?.toUpperCase())
+    
     logSafe('🌐 发送请求:', {
       method: config.method?.toUpperCase(),
       url: config.url,
+      fullURL: fullURL,
       withCredentials: config.withCredentials
     })
     
