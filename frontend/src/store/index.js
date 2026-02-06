@@ -53,11 +53,17 @@ export default createStore({
     SET_DARK_MODE(state, isDark) {
       state.isDarkMode = isDark
       localStorage.setItem('darkMode', isDark.toString())
+      document.documentElement.classList.add('theme-switching')
       if (isDark) {
         document.documentElement.classList.add('dark-mode')
+        document.documentElement.classList.add('dark')
       } else {
         document.documentElement.classList.remove('dark-mode')
+        document.documentElement.classList.remove('dark')
       }
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove('theme-switching')
+      })
     }
   },
   

@@ -11,6 +11,7 @@ import store from './store'        // ← Vuex store 从 ./store/index.js 导入
 // 第5-8行：导入 Element Plus UI 库和全局样式
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import './assets/styles/main.css'
 
