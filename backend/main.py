@@ -261,6 +261,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # - prefix：统一的接口前缀，便于网关/代理配置与权限控制。
 # - tags：OpenAPI 文档中的分组标签，便于分类与浏览。
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
+app.include_router(auth.router, prefix="/auth", tags=["认证"])  # 兼容无/api前缀的请求
 app.include_router(chat.router, prefix="/api/chat", tags=["对话"])
 app.include_router(model.router, prefix="/api/model", tags=["模型"])
 app.include_router(training.router, prefix="/api/training", tags=["训练"])
