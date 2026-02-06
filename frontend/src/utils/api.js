@@ -6,36 +6,34 @@ import { getAccessToken, handle401Error, getAuthHeaders } from './tokenManager'
 import { log, logSafe, error as logError } from './logger'
 
 // 读取环境变量中的 API 基地址，默认为 '/api'。
-// 开发模式下始终使用绝对后端URL，避免浏览器预览代理等非标端口导致路径错误。
+// 开发模式下使用绝对后端URL
 const inferDevApiBase = () => {
   if (typeof window === 'undefined') return '/api'
-  // 开发环境直接返回后端地址
-  const mode = import.meta.env.MODE
-  const isDev = import.meta.env.DEV
-  console.log('环境检测:', { mode, isDev })
-  
-  // 不管什么环境，先尝试使用后端URL
-  return 'http://127.0.0.1:8000/api'
+  if (import.meta.env.DEV) {
+    return 'http://127.0.0.1:8000/api'
+  }
+  return '/api'
 }
 
 const apiBaseURL = (import.meta.env?.VITE_API_BASE_URL?.trim()) || inferDevApiBase()
 
-console.log('API配置调试:')
-console.log('  - import.meta.env.MODE:', import.meta.env.MODE)
-console.log('  - import.meta.env.DEV:', import.meta.env.DEV)
-console.log('  - import.meta.env.VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
-console.log('  - 最终baseURL:', apiBaseURL)
-console.log('  - 示例请求URL: ' + apiBaseURL + '/model/list')
+console.log('🔍 API配置:')
+console.log('  DEV模式:', import.meta.env.DEV)
+console.log('  配置的baseURL:', apiBaseURL)
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: apiBaseURL,  // 支持通过环境变量配置
+  baseURL: apiBaseURL,
   timeout: 30000,
-  withCredentials: true,  // 确保发送cookie
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 })
+
+console.log('🔍 axios实例配置:')
+console.log('  实例baseURL:', api.defaults.baseURL)
+console.log('  实例headers:', api.defaults.headers)
 
 // 请求拦截器
 api.interceptors.request.use(
