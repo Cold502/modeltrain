@@ -132,8 +132,13 @@
     2.	角色权限管理	86
     3.	系统统计	88
     4.	关键代码实现	89
+（九）	暗色模式与主题切换模块	90
+    1.	主题状态管理	90
+    2.	CSS主题切换机制	90
+    3.	用户偏好持久化	91
+    4.	关键代码实现	91
 
-五、	系统测试	91
+五、	系统测试	92
 （一）	测试目的	91
 （二）	测试环境	91
     1.	硬件环境	91
@@ -1251,6 +1256,60 @@ async def get_admin_stats(
 ```
 
 该代码实现系统统计数据获取功能，查询数据库统计用户数量信息并返回。
+
+（九）暗色模式与主题切换模块
+
+暗色模式是现代Web应用提升用户体验的重要功能，本系统实现了全局暗色模式切换，支持日间模式和黑夜模式两种主题风格，用户可根据使用环境和个人偏好自由切换。
+
+1. 主题状态管理
+系统采用Vuex进行全局主题状态管理。在Vuex Store中定义isDarkMode状态变量，通过SET_DARK_MODE mutation统一修改主题状态，确保所有组件能够同步响应主题变化。主题切换通过toggleDarkMode action触发，该action读取当前状态并取反，实现一键切换。
+
+主题切换的核心逻辑是通过操作document.documentElement（即HTML根元素）的CSS类名来实现的。当用户切换到暗色模式时，系统在根元素上添加dark-mode类名；切换回日间模式时，移除该类名。所有组件的样式通过CSS变量和类选择器响应主题变化，实现全局统一的主题切换效果。
+
+2. CSS主题切换机制
+系统采用CSS变量（CSS Custom Properties）结合类选择器的方式实现主题切换。在全局样式文件中定义了两套CSS变量：默认的日间模式变量和.dark-mode类下的暗色模式变量。日间模式采用浅色背景、深色文字的配色方案；暗色模式采用深色背景、浅色文字的配色方案。
+
+各组件通过引用CSS变量来设置颜色、背景等样式属性，当根元素的类名发生变化时，CSS变量自动切换为对应主题的值，所有引用了这些变量的组件样式随之自动更新，无需逐个组件手动修改样式。这种设计方式具有良好的可维护性和扩展性，新增组件只需引用已定义的CSS变量即可自动支持主题切换。
+
+3. 用户偏好持久化
+为了提升用户体验，系统将用户的主题偏好保存到浏览器的localStorage中。当用户切换主题时，SET_DARK_MODE mutation在修改Vuex状态的同时，将当前主题设置写入localStorage。当用户再次访问系统时，loadUserFromStorage action在初始化阶段从localStorage读取保存的主题偏好，并自动应用对应的主题，避免每次打开页面都需要重新设置。
+
+主题切换UI控件位于页面顶部导航栏的右侧区域，采用自定义的滑动开关组件实现。开关使用Element Plus的Moon（月亮）和Sunny（太阳）图标分别表示暗色模式和日间模式，切换时带有平滑的滑动动画效果，提供直观的视觉反馈。
+
+4. 关键代码实现
+
+Vuex Store中主题状态管理的核心代码如下：
+
+```javascript
+// Vuex Store - 主题状态管理
+state: {
+  isDarkMode: false
+},
+
+mutations: {
+  SET_DARK_MODE(state, isDark) {
+    state.isDarkMode = isDark
+    localStorage.setItem('darkMode', isDark.toString())
+    if (isDark) {
+      document.documentElement.classList.add('dark-mode')
+    } else {
+      document.documentElement.classList.remove('dark-mode')
+    }
+  }
+},
+
+actions: {
+  toggleDarkMode({ commit, state }) {
+    commit('SET_DARK_MODE', !state.isDarkMode)
+  },
+  loadUserFromStorage({ commit }) {
+    const darkMode = localStorage.getItem('darkMode') === 'true'
+    commit('SET_DARK_MODE', darkMode)
+  }
+}
+```
+
+该代码通过Vuex实现主题状态的集中管理，SET_DARK_MODE mutation同时完成三个操作：更新Vuex状态、持久化到localStorage、切换根元素CSS类名，确保状态、存储和视图的一致性。
 
 
 ================================================================================
