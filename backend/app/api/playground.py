@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.post("/playground/chat", responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+@router.post("/chat", responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def playground_chat(
     request: dict,  # {"model_config_id": str, "messages": List[dict]}
     db: Session = Depends(get_db),
@@ -87,7 +87,7 @@ async def playground_chat(
             detail=f"模型调用失败: {str(e)}"
         )
 
-@router.post("/playground/chat/stream", responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+@router.post("/chat/stream", responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def playground_chat_stream(
     request: dict,  # {"model_config_id": str, "messages": List[dict]}
     db: Session = Depends(get_db),
@@ -179,7 +179,7 @@ async def playground_chat_stream(
 # =====================
 
 @router.get(
-    "/playground/prompts",
+    "/prompts",
     response_model=List[TestPromptResponse],
     responses={401: {"model": ErrorResponse}}
 )
@@ -210,7 +210,7 @@ async def list_test_prompts(
 
 
 @router.post(
-    "/playground/prompts",
+    "/prompts",
     response_model=TestPromptResponse,
     status_code=status.HTTP_201_CREATED,
     responses={401: {"model": ErrorResponse}}
@@ -242,7 +242,7 @@ def _get_owned_prompt(db: Session, prompt_id: int, user_id: int) -> TestPrompt:
 
 
 @router.put(
-    "/playground/prompts/{prompt_id}",
+    "/prompts/{prompt_id}",
     response_model=TestPromptResponse,
     responses={401: {"model": ErrorResponse}}
 )
@@ -266,7 +266,7 @@ async def update_test_prompt(
 
 
 @router.delete(
-    "/playground/prompts/{prompt_id}",
+    "/prompts/{prompt_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={401: {"model": ErrorResponse}}
 )

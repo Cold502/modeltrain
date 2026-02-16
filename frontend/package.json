@@ -1,6 +1,7 @@
 {
   "name": "modeltrain-frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "企业模型训练平台前端",
   "scripts": {
     "dev": "vite",

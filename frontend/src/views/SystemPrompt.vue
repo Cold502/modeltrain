@@ -278,7 +278,7 @@ import {
   ChatLineSquare, Plus, Collection, Refresh, MoreFilled, 
   Check, InfoFilled, CopyDocument 
 } from '@element-plus/icons-vue'
-import axios from 'axios'
+import api, { chatAPI } from '@/utils/api'
 
 export default {
   name: 'SystemPrompt',
@@ -380,17 +380,28 @@ export default {
     
     const loadPrompts = async () => {
       try {
-        const response = await axios.get('/api/chat/system-prompts')
-        prompts.value = response.data
+        const response = await chatAPI.getSystemPrompts()
+        console.log('系统提示词响应:', response.data)
+        // 确保prompts是数组
+        if (Array.isArray(response.data)) {
+          prompts.value = response.data
+        } else {
+          console.error('返回数据不是数组:', response.data)
+          prompts.value = []
+          ElMessage.error('数据格式错误')
+        }
       } catch (error) {
+        console.error('加载提示词失败:', error)
         ElMessage.error('加载提示词失败: ' + error.message)
+        prompts.value = []
       }
     }
     
     const loadPredefinedTemplates = async () => {
       try {
-        const response = await axios.get('/api/chat/system-prompts/predefined')
-        predefinedTemplates.value = response.data.prompts
+        const response = await chatAPI.getSystemPrompts()
+        console.log('预定义模板响应:', response.data)
+        predefinedTemplates.value = response.data.prompts || []
       } catch (error) {
         ElMessage.error('加载预定义模板失败: ' + error.message)
       }
@@ -441,10 +452,10 @@ export default {
         saving.value = true
         
         if (dialogMode.value === 'create') {
-          await axios.post('/api/chat/system-prompts', promptForm)
+          await chatAPI.createSystemPrompt(promptForm)
           ElMessage.success('创建成功')
         } else {
-          await axios.put(`/api/chat/system-prompts/${promptForm.id}`, promptForm)
+          await chatAPI.updateSystemPrompt(promptForm.id, promptForm)
           ElMessage.success('更新成功')
         }
         
@@ -459,7 +470,7 @@ export default {
     
     const selectTemplate = async (template) => {
       try {
-        await axios.post(`/api/chat/system-prompts/predefined/${template.key}`)
+        await chatAPI.createSystemPrompt(template)
         ElMessage.success('模板添加成功')
         predefinedDialogVisible.value = false
         loadPrompts()
@@ -501,7 +512,7 @@ export default {
           }
         )
         
-        await axios.delete(`/api/chat/system-prompts/${prompt.id}`)
+        await chatAPI.deleteSystemPrompt(prompt.id)
         ElMessage.success('删除成功')
         loadPrompts()
       } catch (error) {
@@ -518,7 +529,7 @@ export default {
       }
       
       try {
-        const response = await axios.post('/api/chat/system-prompts/convert', {
+        const response = await api.post('/chat/system-prompts/convert', {
           content: promptForm.content,
           source_format: promptForm.format_type,
           target_format: promptForm.format_type
@@ -536,7 +547,7 @@ export default {
     
     const validatePrompt = async (promptId) => {
       try {
-        const response = await axios.post(`/api/chat/system-prompts/${promptId}/validate`)
+        const response = await api.post(`/chat/system-prompts/${promptId}/validate`)
         validationResult.value = response.data
         validationDialogVisible.value = true
       } catch (error) {
@@ -555,7 +566,7 @@ export default {
     const performConvert = async () => {
       try {
         converting.value = true
-        const response = await axios.post('/api/chat/system-prompts/convert', convertForm)
+        const response = await api.post('/chat/system-prompts/convert', convertForm)
         convertResult.value = response.data
       } catch (error) {
         ElMessage.error('转换失败: ' + error.message)
@@ -616,7 +627,15 @@ export default {
       handlePromptAction,
       validateCurrentPrompt,
       performConvert,
-      copyConvertResult
+      copyConvertResult,
+      ChatLineSquare,
+      Plus,
+      Collection,
+      Refresh,
+      MoreFilled,
+      Check,
+      InfoFilled,
+      CopyDocument
     }
   }
 }

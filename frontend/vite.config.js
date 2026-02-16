@@ -22,32 +22,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5173,
     host: '0.0.0.0', // 允许外部访问
-    cors: true, // 启用 CORS
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
-        ws: true, // 支持 WebSocket
-        rewrite: (path) => path, // 保持路径不变
-        configure: (proxy, options) => {
-          proxy.on('error', (err, req, res) => {
-            console.log('代理错误:', err);
-          });
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            // 保持原始cookie
-            if (req.headers.cookie) {
-              proxyReq.setHeader('Cookie', req.headers.cookie);
-            }
-            console.log('代理请求:', req.method, req.url);
-          });
-          proxy.on('proxyRes', (proxyRes, req, res) => {
-            console.log('代理响应:', proxyRes.statusCode, req.url);
-          });
-        }
-      }
-    }
+    cors: true // 启用 CORS
   }
 }) 

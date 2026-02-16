@@ -5,15 +5,18 @@ import router from '../router'
 import { getAccessToken, handle401Error, getAuthHeaders } from './tokenManager'
 import { log, logSafe, error as logError } from './logger'
 
-// 读取环境变量中的 API 基地址，默认为 '/api'。
-// 当处于 Vite dev server（常用 3000 端口）且未手动配置时，自动回退到后端服务 8000 端口，避免代理失效导致 404。
+// 读取环境变量中的 API 基地址，默认为空。
+// 仅当处于 Vite dev server 本地开发模式时，跨域指向后端 8000 端口。
+// Docker 模式下由 nginx 反向代理，使用同源请求（返回空字符串）。
 const inferDevApiBase = () => {
-  if (typeof window === 'undefined') return '/api'
-  const { hostname, port } = window.location
-  if (port === '3000' || port === '5173') {
-    return `http://127.0.0.1:8000/api`
+  if (typeof window === 'undefined') return ''
+  // 仅在 Vite dev server 时才跨域访问后端
+  // Docker 模式下 nginx 会代理 /auth /chat 等路径到后端，无需跨域
+  if (import.meta.env?.DEV) {
+    const { hostname } = window.location
+    return `http://${hostname}:8000`
   }
-  return '/api'
+  return ''
 }
 
 const apiBaseURL = (import.meta.env?.VITE_API_BASE_URL?.trim()) || inferDevApiBase()

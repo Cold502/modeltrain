@@ -54,6 +54,29 @@ def get_db():
     finally:
         db.close()
 
+_lf_ready = False  # 缓存：一旦就绪就不再检测
+
+@router.get("/llamafactory/health")
+async def check_llamafactory_health():
+    """检查 LLaMA-Factory Web UI 是否已就绪
+
+    使用 asyncio TCP 连接检测端口是否可达，不创建 httpx 客户端，
+    避免阻塞事件循环影响其他 API 请求。
+    """
+    global _lf_ready
+    if _lf_ready:
+        return {"status": "ready"}
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection("127.0.0.1", 7860), timeout=1
+        )
+        writer.close()
+        await writer.wait_closed()
+        _lf_ready = True
+        return {"status": "ready"}
+    except Exception:
+        return {"status": "starting"}
+
 @router.post("/datasets", response_model=DatasetResponse, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def upload_dataset(
     file: UploadFile = File(...),
@@ -377,109 +400,49 @@ async def start_swanlab(config: dict):
     if check_swanlab_status() == "running":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="SwanLab服务已在运行"
+            detail="SwanBoard 服务已在运行"
+        )
+
+    save_swanlab_config(config)
+    data_dir = config.get("data_dir", "./swanlab_data")
+    os.makedirs(data_dir, exist_ok=True)
+    host = config.get("host", "0.0.0.0")
+    port = int(config.get("port", 5092))
+
+    # 检查数据目录是否包含 swanlab 数据库（训练后才会生成）
+    has_db = any(f.endswith(".db") or f == "runs" for f in os.listdir(data_dir)) if os.listdir(data_dir) else False
+    if not has_db:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"数据目录 {os.path.abspath(data_dir)} 中没有训练日志。请先在 LLaMA-Factory 中启用 SwanLab 回调进行一次训练。"
         )
 
     try:
-        data_dir = config.get("data_dir", "./swanlab_data")
-        os.makedirs(data_dir, exist_ok=True)
-        
-        # 检查目录是否为空，如果为空则创建一个默认的 swanlog 结构
-        if not os.listdir(data_dir):
-            logger.info("数据目录为空，创建默认项目结构")
-            # 创建一个默认的项目目录
-            default_project = os.path.join(data_dir, "swanlog")
-            os.makedirs(default_project, exist_ok=True)
-            # 创建必要的元数据文件
-            metadata = {
-                "version": "1.0",
-                "created_at": datetime.now().isoformat()
-            }
-            with open(os.path.join(default_project, ".swanlab"), "w") as f:
-                json.dump(metadata, f)
-
-        host = config.get("host", "127.0.0.1")
-        port = str(config.get("port", 5092))
-
-        # 先检查 swanlab 命令是否可用
-        try:
-            check_cmd = ["swanlab", "--version"]
-            result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=5)
-            logger.info(f"SwanLab版本: {result.stdout}")
-        except FileNotFoundError:
-            raise Exception("SwanLab命令不可用，请确保已安装: pip install swanlab")
-        except Exception as e:
-            logger.warning(f"检查SwanLab版本失败: {str(e)}")
-
-        # 使用 swanlab watch 命令启动
-        # 最新用法: swanlab watch [PATH] -h [host] -p [port]
-        # 直接指定路径，不需要 -l 参数
-        cmd = [
-            "swanlab", "watch",
-            data_dir,
-            "-h", host,
-            "-p", port
-        ]
-
-        logger.info(f"启动SwanLab命令: {' '.join(cmd)}")
-        logger.info(f"工作目录: {os.getcwd()}")
-        logger.info(f"数据目录绝对路径: {os.path.abspath(data_dir)}")
-
-        # 创建非阻塞进程，不捕获输出（让 SwanLab 直接输出到控制台）
+        # 使用 swanboard 的 Python API 启动可视化服务
+        data_dir_escaped = os.path.abspath(data_dir).replace("\\", "/")
         SWANLAB_PROCESS = subprocess.Popen(
-            cmd,
-            cwd=os.getcwd(),
+            ["python", "-c",
+             f"from swanboard.run import SwanBoardRun; SwanBoardRun.run('{data_dir_escaped}', '{host}', {port})"],
             creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
         )
-
-        logger.info(f"SwanLab 进程已启动，PID: {SWANLAB_PROCESS.pid}")
+        logger.info(f"SwanBoard 进程已启动，PID: {SWANLAB_PROCESS.pid}")
 
         # 等待进程启动
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
 
-        # 检查进程是否还在运行
         if SWANLAB_PROCESS.poll() is not None:
-            logger.error(f"SwanLab进程启动后立即退出，退出码: {SWANLAB_PROCESS.returncode}")
             SWANLAB_PROCESS = None
-            raise Exception(f"SwanLab进程启动失败，请检查数据目录是否包含有效的训练日志")
-        
-        # 尝试连接验证服务是否真的启动
-        max_retries = 10
-        connected = False
-        for i in range(max_retries):
-            try:
-                await asyncio.sleep(1)
-                import requests
-                url = f"http://{host}:{port}"
-                response = requests.get(url, timeout=3)
-                if response.status_code == 200:
-                    logger.info(f"SwanLab服务验证成功，状态码: {response.status_code}")
-                    connected = True
-                    break
-            except Exception as conn_error:
-                logger.debug(f"第 {i+1} 次连接尝试失败: {str(conn_error)}")
-                # 检查进程是否还活着
-                if SWANLAB_PROCESS.poll() is not None:
-                    logger.error(f"SwanLab进程在等待连接时退出")
-                    SWANLAB_PROCESS = None
-                    raise Exception(f"SwanLab进程意外退出，请检查是否有有效的训练日志数据")
-        
-        if not connected:
-            logger.warning(f"SwanLab服务启动但在 {max_retries} 秒内未响应连接")
-            # 终止进程
-            if SWANLAB_PROCESS:
-                SWANLAB_PROCESS.terminate()
-                SWANLAB_PROCESS = None
-            raise Exception(f"SwanLab服务启动超时，请确保端口 {port} 未被占用")
+            raise Exception("SwanBoard 进程启动后立即退出，请检查数据目录是否包含有效的 swanlab 训练日志")
 
-        save_swanlab_config(config)
-        return {"message": "SwanLab服务启动成功", "status": "starting"}
+        return {"message": f"SwanBoard 可视化服务已启动 http://{host}:{port}", "status": "running"}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"启动SwanLab时发生异常: {str(e)}")
+        logger.error(f"启动 SwanBoard 失败: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"启动SwanLab失败: {str(e)}"
+            detail=f"启动 SwanBoard 失败: {str(e)}"
         )
 
 @router.post("/swanlab/stop", responses={500: {"model": ErrorResponse}})

@@ -9,14 +9,18 @@ from typing import Optional, Dict, Any, List
 import httpx
 import json
 import logging
+import os
 from pydantic import BaseModel
 
-from app.config.dify_config import DIFY_API_URL, DIFY_API_KEY, DIFY_TIMEOUT
 from app.utils.auth import get_current_user
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+DIFY_API_URL = os.getenv("DIFY_API_URL", "http://localhost")
+DIFY_API_KEY = os.getenv("DIFY_API_KEY", "")
+DIFY_TIMEOUT = 60
 
 
 class DifyChatRequest(BaseModel):
@@ -40,7 +44,7 @@ async def check_dify_health():
     """
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{DIFY_API_URL}/health")
+            response = await client.get(f"{DIFY_API_URL}/console/api/setup")
             if response.status_code == 200:
                 return {
                     "status": "running",

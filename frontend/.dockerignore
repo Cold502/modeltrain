@@ -30,4 +30,3 @@ coverage/
 README.md
 Dockerfile
 .dockerignore
-nginx.conf

@@ -19,7 +19,7 @@ from app.llm_core.llm_client import get_model_providers, LLMClient
 # 配置日志记录器
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/model-config", tags=["模型配置"])
+router = APIRouter(tags=["模型配置"])
 
 # 默认模型提供商
 DEFAULT_PROVIDERS = [

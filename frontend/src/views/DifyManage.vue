@@ -14,11 +14,20 @@
     
     <div class="dify-content">
       <iframe 
+        v-if="healthStatus.status === 'running'"
         :src="difyWebUrl" 
         frameborder="0"
         class="dify-iframe"
         @load="onIframeLoad"
       />
+      <div v-else class="dify-placeholder">
+        <el-empty description="Dify 服务未运行">
+          <template #default>
+            <p style="color: var(--el-text-color-secondary); margin-bottom: 12px;">请先通过 dev.bat 或 docker compose 启动 Dify 服务</p>
+            <el-button type="primary" @click="checkHealth">重新检测</el-button>
+          </template>
+        </el-empty>
+      </div>
     </div>
   </div>
 </template>
@@ -27,9 +36,9 @@
 import { ref, onMounted } from 'vue'
 import { Link } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import api from '@/utils/api'
+import { difyAPI } from '@/utils/api'
 
-const difyWebUrl = import.meta.env.VITE_DIFY_WEB_URL || 'http://localhost:3000'
+const difyWebUrl = `http://${window.location.hostname}`
 const healthStatus = ref({
   status: 'unknown',
   message: '检查中...'
@@ -37,10 +46,10 @@ const healthStatus = ref({
 
 const checkHealth = async () => {
   try {
-    const response = await api.dify.checkHealth()
+    const response = await difyAPI.checkHealth()
     healthStatus.value = {
-      status: response.status,
-      message: response.message || response.status
+      status: response.data.status,
+      message: response.data.message || response.data.status
     }
   } catch (error) {
     healthStatus.value = {
@@ -68,13 +77,13 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background: var(--el-bg-color-page);
 }
 
 .dify-header {
   padding: 20px 24px;
-  background: white;
-  border-bottom: 1px solid #e4e7ed;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -85,7 +94,7 @@ onMounted(() => {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--el-text-color-primary);
 }
 
 .header-actions {
@@ -105,6 +114,15 @@ onMounted(() => {
   height: 100%;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  background: white;
+  background: var(--el-bg-color);
+}
+
+.dify-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--el-bg-color);
+  border-radius: 8px;
 }
 </style>

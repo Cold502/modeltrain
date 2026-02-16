@@ -60,17 +60,45 @@ async def lifespan(app: FastAPI):
     # 启动 LLaMA-Factory Web UI（端口 7860）
     llamafactory_proc = None
     try:
-        logger.info("尝试启动 LLaMA-Factory Web UI（llamafactory-cli webui --port 7860）...")
+        logger.info("尝试启动 LLaMA-Factory Web UI...")
+        env = os.environ.copy()
+        env["GRADIO_SERVER_NAME"] = "0.0.0.0"
+        env["GRADIO_OPEN_BROWSER"] = "false"
+        env["BROWSER"] = ""
+        lf_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "start_lf.py")
         llamafactory_proc = subprocess.Popen(
-            ["llamafactory-cli", "webui", "--port", "7860"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            ["python", lf_script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
         )
         logger.info("LLaMA-Factory Web UI 子进程已启动，PID=%s", llamafactory_proc.pid)
     except FileNotFoundError:
         logger.error("无法找到 'llamafactory-cli' 命令，请确认 LLaMA-Factory 已正确安装到当前环境中。")
     except Exception as e:
-        logger.error("启动 LLaMA-Factory Web UI 失败: %s", e)
+        logger.error("启动 LLaMA-Factory 失败: %s", e)
+    app.state.llamafactory_proc = llamafactory_proc
+
+    # 启动 SwanBoard 可视化服务（端口 5092）
+    swanlab_proc = None
+    try:
+        data_dir = os.path.join(os.path.dirname(__file__), "swanlab_data")
+        os.makedirs(data_dir, exist_ok=True)
+        # 检查是否有训练数据
+        if os.listdir(data_dir):
+            logger.info("尝试启动 SwanBoard 可视化服务（:5092）...")
+            sb_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "start_swanboard.py")
+            swanlab_proc = subprocess.Popen(
+                ["python", sb_script, data_dir.replace("\\", "/"), "0.0.0.0", "5092"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            logger.info("SwanBoard 子进程已启动，PID=%s", swanlab_proc.pid)
+        else:
+            logger.info("SwanLab 数据目录为空，跳过 SwanBoard 启动（训练后可手动启动）")
+    except Exception as e:
+        logger.error("启动 SwanBoard 失败: %s", e)
+    app.state.swanlab_proc = swanlab_proc
 
     # 创建所有表（如果不存在）
     from app.database import Base
@@ -95,12 +123,20 @@ async def lifespan(app: FastAPI):
     # 关闭 LLaMA-Factory 子进程（如果有）
     if llamafactory_proc is not None:
         try:
-            logger.info("尝试关闭 LLaMA-Factory Web UI 子进程（PID=%s）...", llamafactory_proc.pid)
+            logger.info("关闭 LLaMA-Factory（PID=%s）...", llamafactory_proc.pid)
             llamafactory_proc.terminate()
             llamafactory_proc.wait(timeout=10)
-            logger.info("LLaMA-Factory Web UI 子进程已正常退出。")
         except Exception as e:
-            logger.error("关闭 LLaMA-Factory Web UI 子进程失败: %s", e)
+            logger.error("关闭 LLaMA-Factory 失败: %s", e)
+
+    # 关闭 SwanLab 子进程（如果有，由前端手动启动的）
+    if getattr(app.state, 'swanlab_proc', None) is not None:
+        try:
+            logger.info("关闭 SwanLab（PID=%s）...", app.state.swanlab_proc.pid)
+            app.state.swanlab_proc.terminate()
+            app.state.swanlab_proc.wait(timeout=10)
+        except Exception as e:
+            logger.error("关闭 SwanLab 失败: %s", e)
 
 # app：FastAPI 应用实例
 # 作用：
@@ -125,23 +161,23 @@ app = FastAPI(
 # - allow_credentials：允许携带 Cookie（配合 HttpOnly Refresh Token 使用）。
 # - allow_methods/allow_headers：允许的方法与头部（生产环境建议最小化）。
 # 注意：
-# - 生产环境应改为实际域名，避免使用通配；减少暴露的 headers。
-cors_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-if os.getenv("ENVIRONMENT", "development") != "production":
-    cors_origins += [
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ]
+# - 开发环境使用 allow_origin_regex 支持局域网任意IP访问（如 http://192.168.1.100:3000）
+# - 生产环境应通过 CORS_ORIGINS 环境变量配置具体域名，多个域名用逗号分隔
+environment = os.getenv("ENVIRONMENT", "development")
+if environment == "production":
+    # 生产环境：从环境变量读取允许的域名列表
+    cors_origins_str = os.getenv("CORS_ORIGINS", "")
+    cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
+    cors_origin_regex = None
+else:
+    # 开发环境：允许任意IP和端口的localhost/127.0.0.1/局域网IP访问
+    # 匹配: http://localhost:3000, http://127.0.0.1:3000, http://192.168.1.100:3000 等
+    cors_origins = []
+    cors_origin_regex = r"^https?://(localhost|127\.0\.0\.1|[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3})(:\d+)?$"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
@@ -264,15 +300,14 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # 参数说明：
 # - prefix：统一的接口前缀，便于网关/代理配置与权限控制。
 # - tags：OpenAPI 文档中的分组标签，便于分类与浏览。
-app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
-app.include_router(auth.router, prefix="/auth", tags=["认证"])  # 兼容无/api前缀的请求
-app.include_router(chat.router, prefix="/api/chat", tags=["对话"])
-app.include_router(model.router, prefix="/api/model", tags=["模型"])
-app.include_router(training.router, prefix="/api/training", tags=["训练"])
-app.include_router(admin.router, prefix="/api/admin", tags=["管理"])
-app.include_router(model_config.router, prefix="/api", tags=["模型配置"])
-app.include_router(playground.router, prefix="/api/playground", tags=["Playground"])
-app.include_router(dify.router, prefix="/api/dify", tags=["Dify"])
+app.include_router(auth.router, prefix="/auth", tags=["认证"])
+app.include_router(chat.router, prefix="/chat", tags=["对话"])
+app.include_router(model.router, prefix="/model", tags=["模型"])
+app.include_router(training.router, prefix="/training", tags=["训练"])
+app.include_router(admin.router, prefix="/admin", tags=["管理"])
+app.include_router(model_config.router, prefix="/model-config", tags=["模型配置"])
+app.include_router(playground.router, prefix="/playground", tags=["Playground"])
+app.include_router(dify.router, prefix="/dify", tags=["Dify"])
 
 # 静态文件服务
 # 作用：

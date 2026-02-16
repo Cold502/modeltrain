@@ -1,117 +1,49 @@
-version: '3.8'
-
 services:
-  # MySQL数据库
-  mysql:
-    image: mysql:8.0
-    container_name: modeltrain-mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-modeltrain123}
-      MYSQL_DATABASE: modeltrain
-      MYSQL_USER: ${MYSQL_USER:-modeltrain}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-modeltrain123}
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - modeltrain-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # 后端FastAPI服务
+  # 后端FastAPI服务（SQLite数据库，零配置）
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
     container_name: modeltrain-backend
     restart: always
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-modeltrain}:${MYSQL_PASSWORD:-modeltrain123}@mysql:3306/modeltrain
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      JWT_SECRET_KEY: root
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 43200
-      DIFY_API_URL: ${DIFY_API_URL:-http://dify-api:5001/v1}
-      DIFY_API_KEY: ${DIFY_API_KEY}
-      DIFY_WEB_URL: ${DIFY_WEB_URL:-http://localhost:3000}
-      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:80,http://localhost:3000
-    depends_on:
-      mysql:
-        condition: service_healthy
+      DIFY_API_URL: http://dify-api:5001
+      DIFY_API_KEY: ""
+      DIFY_WEB_URL: http://localhost:3000
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
     networks:
       - modeltrain-network
     volumes:
       - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   # 前端Vue3应用
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    build: ./frontend
     container_name: modeltrain-frontend
     restart: always
     ports:
-      - "80:80"
+      - "5173:80"
     depends_on:
       - backend
     networks:
       - modeltrain-network
-    environment:
-      VITE_API_BASE_URL: http://localhost:8000
-      VITE_DIFY_WEB_URL: http://localhost:3000
 
-  # LLaMA-Factory训练服务
-  llamafactory:
-    image: hiyouga/llama-factory:latest
-    container_name: modeltrain-llamafactory
-    restart: always
-    ports:
-      - "7860:7860"
-    volumes:
-      - ./data/models:/app/models
-      - ./data/datasets:/app/data
-    networks:
-      - modeltrain-network
-    environment:
-      GRADIO_SERVER_NAME: 0.0.0.0
-      GRADIO_SERVER_PORT: 7860
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+  # NOTE: LLaMA-Factory 和 SwanLab 由后端 lifespan 自动启动管理
+  # LLaMA-Factory 需要 GPU，通过 backend 容器内的 llamafactory-cli 启动
+  # SwanLab 已包含在 backend requirements.txt 中
 
-  # SwanLab可视化服务
-  swanlab:
-    image: swanhubai/swanlab:latest
-    container_name: modeltrain-swanlab
-    restart: always
-    ports:
-      - "5092:5092"
-    volumes:
-      - ./data/swanlab:/root/.swanlab
-    networks:
-      - modeltrain-network
-
-  # Dify服务组（使用官方docker-compose）
   # PostgreSQL for Dify
   postgres:
     image: postgres:15-alpine
     container_name: modeltrain-postgres
     restart: always
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-difyai123456}
+      POSTGRES_PASSWORD: root
       POSTGRES_DB: dify
-      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -135,9 +67,9 @@ services:
       - "6379:6379"
     networks:
       - modeltrain-network
-    command: redis-server --requirepass ${REDIS_PASSWORD:-difyai123456}
+    command: redis-server --requirepass root
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "root", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -162,23 +94,22 @@ services:
     environment:
       MODE: api
       LOG_LEVEL: INFO
-      SECRET_KEY: ${DIFY_SECRET_KEY:-sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U}
+      SECRET_KEY: sk-root
       DB_USERNAME: postgres
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-difyai123456}
+      DB_PASSWORD: root
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: dify
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-difyai123456}
+      REDIS_PASSWORD: root
       REDIS_USE_SSL: "false"
       REDIS_DB: 0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-difyai123456}@redis:6379/1
+      CELERY_BROKER_URL: redis://:root@redis:6379/1
       STORAGE_TYPE: local
       STORAGE_LOCAL_PATH: /app/storage
       VECTOR_STORE: qdrant
       QDRANT_URL: http://qdrant:6333
-      QDRANT_API_KEY: ${QDRANT_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -197,8 +128,8 @@ services:
     container_name: modeltrain-dify-web
     restart: always
     environment:
-      CONSOLE_API_URL: http://dify-api:5001
-      APP_API_URL: http://dify-api:5001
+      CONSOLE_API_URL: http://localhost:5001
+      APP_API_URL: http://localhost:5001
     depends_on:
       - dify-api
     ports:
@@ -214,23 +145,22 @@ services:
     environment:
       MODE: worker
       LOG_LEVEL: INFO
-      SECRET_KEY: ${DIFY_SECRET_KEY:-sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U}
+      SECRET_KEY: sk-root
       DB_USERNAME: postgres
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-difyai123456}
+      DB_PASSWORD: root
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: dify
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-difyai123456}
+      REDIS_PASSWORD: root
       REDIS_USE_SSL: "false"
       REDIS_DB: 0
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-difyai123456}@redis:6379/1
+      CELERY_BROKER_URL: redis://:root@redis:6379/1
       STORAGE_TYPE: local
       STORAGE_LOCAL_PATH: /app/storage
       VECTOR_STORE: qdrant
       QDRANT_URL: http://qdrant:6333
-      QDRANT_API_KEY: ${QDRANT_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -246,7 +176,6 @@ networks:
     driver: bridge
 
 volumes:
-  mysql_data:
   postgres_data:
   redis_data:
   qdrant_data:

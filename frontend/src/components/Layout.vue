@@ -119,8 +119,32 @@
           </el-dropdown>
         </div>
       </el-header>
-      <el-main class="main-content">
-        <router-view/>
+      <el-main class="main-content" :class="{ 'no-padding': isTrainingRoute || isVizRoute }">
+        <router-view v-show="!isTrainingRoute && !isVizRoute"/>
+        <!-- LlamaFactory 常驻 iframe，切换路由不销毁 -->
+        <div v-show="isTrainingRoute" class="lf-iframe-wrapper">
+          <iframe
+            v-if="lfIframeLoaded"
+            :src="lfIframeSrc"
+            frameborder="0"
+            class="lf-persistent-iframe"
+          ></iframe>
+          <div v-else class="lf-first-load">
+            <p style="color:#909399;">LLaMA-Factory 加载中...</p>
+          </div>
+        </div>
+        <!-- SwanBoard 常驻 iframe，切换路由不销毁 -->
+        <div v-show="isVizRoute" class="lf-iframe-wrapper">
+          <iframe
+            v-if="slIframeLoaded"
+            :src="slIframeSrc"
+            frameborder="0"
+            class="lf-persistent-iframe"
+          ></iframe>
+          <div v-else class="lf-first-load">
+            <p style="color:var(--el-text-color-secondary);">SwanLab 加载中...</p>
+          </div>
+        </div>
       </el-main>
     </el-container>
   </el-container>
@@ -171,6 +195,12 @@ export default {
     const router = useRouter()
     const route = useRoute()
     const isCollapse = ref(false)
+    const lfIframeSrc = `http://${window.location.hostname}:7860`
+    const lfIframeLoaded = ref(false)
+    const slIframeSrc = `http://${window.location.hostname}:5092`
+    const slIframeLoaded = ref(false)
+    const isTrainingRoute = computed(() => route.path === '/dashboard/training')
+    const isVizRoute = computed(() => route.path === '/dashboard/training-viz')
     
     const handleOpen = (key, keyPath) => {
       console.log(key, keyPath)
@@ -189,7 +219,7 @@ export default {
     })
 
     const handleCommand = async (command) => {
-      console.log('📋 用户操作:', command)
+      console.log('用户操作:', command)
       if (command === 'logout') {
         try {
           await store.dispatch('logout')
@@ -203,7 +233,7 @@ export default {
     }
 
     const handleMenuSelect = (index) => {
-      console.log('📍 菜单选择:', index)
+      console.log('菜单选择:', index)
       store.dispatch('setActiveMenu', index)
     }
 
@@ -226,6 +256,10 @@ export default {
 
       // 设置当前激活菜单
       store.dispatch('setActiveMenu', route.path)
+
+      // 延迟预加载 LF iframe（后端启动后 20 秒大概率已就绪）
+      setTimeout(() => { lfIframeLoaded.value = true }, 5000)
+      setTimeout(() => { slIframeLoaded.value = true }, 5000)
     })
 
     return {
@@ -235,6 +269,12 @@ export default {
       activeMenu,
       isDarkMode,
       isCollapse,
+      isTrainingRoute,
+      isVizRoute,
+      lfIframeSrc,
+      lfIframeLoaded,
+      slIframeSrc,
+      slIframeLoaded,
       handleCommand,
       handleMenuSelect,
       toggleDarkMode,
@@ -498,4 +538,27 @@ export default {
   padding: 1.2rem;
   overflow-y: auto;
 }
-</style> 
+
+.main-content.no-padding {
+  padding: 0;
+  overflow: hidden;
+}
+
+.lf-iframe-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.lf-persistent-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.lf-first-load {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+</style>
