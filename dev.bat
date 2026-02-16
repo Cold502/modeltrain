@@ -15,6 +15,14 @@ if errorlevel 1 (
     goto start_backend
 )
 set "DIFY_DIR=%ROOT%dify\docker"
+set "DIFY_PROXY_CONF=%DIFY_DIR%\nginx\proxy.conf.template"
+if exist "%DIFY_PROXY_CONF%" (
+    findstr /c:"proxy_hide_header X-Frame-Options;" "%DIFY_PROXY_CONF%" >nul 2>nul
+    if errorlevel 1 (
+        echo       Patching Dify nginx proxy to allow iframe...
+        powershell -NoProfile -Command "\$f='%DIFY_PROXY_CONF%';\$c=Get-Content \$f -Raw;if(-not \$c.Contains('proxy_hide_header X-Frame-Options;')){\$c=\$c -replace 'proxy_buffering off;','proxy_buffering off;`r`nproxy_hide_header X-Frame-Options;';Set-Content -Path \$f -Value \$c -Encoding UTF8;}"
+    )
+)
 if not exist "%DIFY_DIR%\.env" if exist "%DIFY_DIR%\.env.example" (
     copy "%DIFY_DIR%\.env.example" "%DIFY_DIR%\.env" >nul 2>nul
     echo       Created .env from .env.example
